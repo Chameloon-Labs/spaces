@@ -1,0 +1,26 @@
+# Plant Panic · home page
+# Who is thirsty today (water them in a tap), a health ring in every plant's colour, and plant #5 once it is planted.
+root = Page([stats, thirsty, health, five, tiles, mouse, tip, tips, add], "Plant Panic")
+
+$picked = ""
+
+n = Query("query", {sql: "SELECT (SELECT count(*) FROM plants WHERE thirsty = 1) AS thirsty, (SELECT count(*) FROM plants) AS alive, (SELECT count(*) FROM plants WHERE n = 5) AS has5"}, {rows: [{thirsty: 0, alive: 0, has5: 0}]})
+all = Query("query", {sql: "SELECT id, name, substr(name, 1, instr(name || ' ', ' ') - 1) AS short, trait, health, thirsty, art, color, CASE WHEN thirsty = 1 THEN 'Thirsty' ELSE 'Fine' END AS status FROM plants WHERE n <> 5 ORDER BY n"}, {rows: []})
+dry = Query("query", {sql: "SELECT id, name FROM plants WHERE thirsty = 1 ORDER BY n"}, {rows: []})
+p5 = Query("query", {sql: "SELECT id, name, health, art, cast(julianday('now', 'localtime') - julianday(born) AS INTEGER) AS days FROM plants WHERE n = 5"}, {rows: []})
+
+water = Mutation("run", {sql: "UPDATE plants SET health = 100, thirsty = 0 WHERE id = ?", params: [$picked]})
+
+stats = Stats([Stat("Thirsty today", n.rows[0].thirsty + "", "water them!"), Stat("Alive", n.rows[0].alive + "", "and counting")])
+
+thirsty = @Count(dry.rows) == 0 ? Alert("Everyone is watered", "The mouse has no excuse today.", "success") : Card([CardHeader("Thirsty right now", "Tap to water"), Buttons(@Each(dry.rows, "d", Button("💧 Water " + d.name, Action([@Set($picked, d.id), @Run(water), @Run(all), @Run(dry), @Run(n), @Run(p5), @Haptic("success")]), "default")), "column")])
+
+health = Card([CardHeader("Health", "Each ring is a plant"), Rings(@Each(all.rows, "h", Ring(h.health / 100, h.health + "%", h.short, h.color)))])
+
+five = n.rows[0].has5 == 0 ? null : Card([CardHeader("Plant #5 · " + p5.rows[0].name, "Please live. We believe in you."), Rings([Ring(p5.rows[0].health / 100, p5.rows[0].health + "%", "Health", "#EC4899"), Ring(@Min([p5.rows[0].days / 30, 1]), p5.rows[0].days + "", "Days alive", "#F59E0B")])])
+
+tiles = Tiles(@Each(all.rows, "t", Tile(t.name, t.trait, t.art, t.thirsty == 1 ? "Thirsty" : "Fine")), 2)
+mouse = List([Row("The mouse is watching", "4 plants lost so far. Not this time.", "/img/mouse.png", "4")])
+tip = n.rows[0].has5 == 0 ? Alert("Plant #5 is missing", "Four down is enough. Add the fifth and keep it alive for 30 days.", "warning") : null
+tips = Accordion([AccordionItem("light", "Where does each plant like it?", [MarkDownRenderer("- **Fernando** loves bright, indirect light\n- **Kevin** wants the sunniest sill\n- **Monty** is fine with a bit of shade\n- **Basil** needs 6 hours of light")]), AccordionItem("mouse", "How do I keep it away from plant #5?", [MarkDownRenderer("Put it **high**, behind a closed door, and **tell the mouse** you know.")])], "single")
+add = Buttons([Button("＋ Add plant #5", Action([@Navigate("add")]), "default", "lg")])

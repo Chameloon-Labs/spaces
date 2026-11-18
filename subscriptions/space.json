@@ -1,0 +1,88 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Subscriptions",
+  "version": 1,
+  "minApp": "1.1",
+  "changes": "First version: every renewal on one page, totals per month and year, a reminder before each one charges",
+  "description": "Every subscription on one page: what it costs a month and a year, what renews next, and a reminder before it does.",
+  "icon": "/img/icon.png",
+  "tint": "#6D28D9",
+  "permissions": [
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE subs (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'Other', emoji TEXT NOT NULL DEFAULT '💳', cents INTEGER NOT NULL, cycle TEXT NOT NULL DEFAULT 'month', renews TEXT NOT NULL, remind_days INTEGER NOT NULL DEFAULT 3, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO subs (id, name, kind, emoji, cents, cycle, renews, remind_days) VALUES ('cloud','Cloud storage','Work','☁️',299,'month',date('now','localtime','+1 day'),1),('video','Video streaming','Fun','🎬',1299,'month',date('now','localtime','+3 days'),3),('music','Music','Fun','🎧',1099,'month',date('now','localtime','+9 days'),3),('gym','Fitness studio','Health','🏋️',2990,'month',date('now','localtime','+14 days'),3),('learn','Language course','Learning','🗣️',999,'month',date('now','localtime','+19 days'),3),('news','Newspaper','Learning','📰',8900,'year',date('now','localtime','+41 days'),7),('notes','Notes and tasks','Work','📝',2499,'year',date('now','localtime','+118 days'),7)"
+  ],
+  "card": {
+    "query": "SELECT n, CASE WHEN n = 0 THEN 'Add your first subscription' ELSE '**' || printf('%.2f', m / 100.0) || ' €** a month' END AS headline, printf('%.0f', m * 12 / 100.0) AS yr, coalesce((SELECT name FROM subs ORDER BY renews LIMIT 1), '–') AS nxt FROM (SELECT count(*) AS n, coalesce(sum(CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END), 0) AS m FROM subs)",
+    "motd": "{{headline}}",
+    "stats": [
+      {
+        "label": "Per year",
+        "value": "{{yr}} €"
+      },
+      {
+        "label": "Next",
+        "value": "{{nxt}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "glow",
+    "font": "rounded",
+    "radius": 22
+  },
+  "widget": {
+    "query": "SELECT n, CASE WHEN n = 0 THEN 'Add your first subscription' ELSE '**' || printf('%.2f', m / 100.0) || ' €** a month' END AS headline, printf('%.0f', m * 12 / 100.0) AS yr, coalesce((SELECT name FROM subs ORDER BY renews LIMIT 1), '–') AS nxt FROM (SELECT count(*) AS n, coalesce(sum(CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END), 0) AS m FROM subs)",
+    "background": "#EDE9FE,#DDD6FE",
+    "scheme": "light",
+    "small": [
+      {
+        "type": "image",
+        "url": "/img/icon.png",
+        "height": 52,
+        "radius": 12
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "metric",
+        "text": "{{yr}} €",
+        "style": "title",
+        "detail": "a year",
+        "icon": "arrow.triangle.2.circlepath",
+        "tint": "#5B21B6"
+      }
+    ],
+    "medium": [
+      {
+        "type": "text",
+        "text": "SUBSCRIPTIONS",
+        "style": "caption2",
+        "tint": "#5B21B6"
+      },
+      {
+        "type": "text",
+        "text": "{{headline}}",
+        "style": "headline"
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "text",
+        "text": "Next renewal: {{nxt}}",
+        "style": "caption",
+        "tint": "#6B5B95"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "🔁 {{yr}} € a year"
+      }
+    ]
+  }
+}

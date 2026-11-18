@@ -1,0 +1,13 @@
+# My Day · lunch at the market
+# The list for 12:30: tick what is in the basket.
+root = Page([hero, bar, list, all], "Market")
+
+$picked = ""
+items = Query("query", {sql: "SELECT id, name, qty, 'icon:' || icon AS ic, got FROM shop ORDER BY got, n"}, {rows: []})
+prog = Query("query", {sql: "SELECT count(*) AS total, coalesce(sum(got), 0) AS got FROM shop"}, {rows: [{total: 1, got: 0}]})
+toggle = Mutation("run", {sql: "UPDATE shop SET got = 1 - got WHERE id = ?", params: [$picked]})
+
+hero = Image("/img/market-s.png", "Lunch at the market")
+bar = Progress(@Round(prog.rows[0].got * 100 / prog.rows[0].total), prog.rows[0].got + " of " + prog.rows[0].total + " in the basket")
+list = List(@Each(items.rows, "i", Row(i.name, i.qty, i.got == 1 ? "icon:circle-check" : i.ic, i.got == 1 ? "Got it" : null, Action([@Set($picked, i.id), @Run(toggle), @Run(items), @Run(prog), @Haptic("light")]))), "Tap what's in the basket")
+all = prog.rows[0].got == prog.rows[0].total ? Alert("Basket full", "Time for lunch. Caprese is on.", "success") : null

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Warranty locker",
+  "version": 1,
+  "minApp": "1.1",
+  "changes": "First version: receipts, warranty end dates and a reminder before each one ends",
+  "description": "Receipts and warranty dates in one place. A reminder before a warranty ends, so you still have time to claim.",
+  "icon": "/img/icon.png",
+  "tint": "#0F766E",
+  "permissions": [
+    "camera",
+    "photos",
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE items (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, bought TEXT NOT NULL DEFAULT (date('now', 'localtime')), months INTEGER NOT NULL DEFAULT 24, photo TEXT, receipt TEXT, remind_days INTEGER NOT NULL DEFAULT 30, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO items (id, name, bought, months, photo, receipt) VALUES ('coffee', 'Coffee machine', date('now', 'localtime', '-23 months', '-5 days'), 24, '/img/coffee.svg', '/img/receipt.svg'), ('bike', 'City bike', date('now', 'localtime', '-10 months'), 12, '/img/bike.svg', '/img/receipt.svg'), ('laptop', 'Laptop', date('now', 'localtime', '-20 months'), 36, '/img/laptop.svg', '/img/receipt.svg'), ('headphones', 'Headphones', date('now', 'localtime', '-4 months'), 24, '/img/headphones.svg', '/img/receipt.svg'), ('washer', 'Washing machine', date('now', 'localtime', '-31 months'), 60, '/img/washer.svg', '/img/receipt.svg'), ('camera', 'Camera', date('now', 'localtime', '-26 months'), 24, '/img/camera.svg', NULL)"
+  ],
+  "card": {
+    "query": "SELECT items, soon, CASE WHEN items = 0 THEN 'Add your first receipt' WHEN soon = 0 THEN 'Nothing ends soon 🛡️' WHEN soon = 1 THEN '**1** warranty ends within 60 days' ELSE '**' || soon || '** warranties end within 60 days' END AS headline FROM (SELECT count(*) AS items, coalesce(sum(CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) BETWEEN 0 AND 60), 0) AS soon FROM items)",
+    "motd": "{{headline}}",
+    "stats": [
+      {
+        "label": "Ending soon",
+        "value": "{{soon}}"
+      },
+      {
+        "label": "Items",
+        "value": "{{items}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "rounded",
+    "radius": 20
+  },
+  "widget": {
+    "query": "SELECT count(*) AS items, coalesce(sum(CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) BETWEEN 0 AND 60), 0) AS soon, coalesce((SELECT name FROM items WHERE CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) >= 0 ORDER BY CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) LIMIT 1), 'Nothing yet') AS next, coalesce((SELECT CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) FROM items WHERE CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) >= 0 ORDER BY CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) LIMIT 1), 0) AS days FROM items",
+    "background": "#E6FBF6,#CCFBF1",
+    "scheme": "light",
+    "small": [
+      {
+        "type": "image",
+        "url": "/img/icon.png",
+        "height": 58,
+        "radius": 13
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "metric",
+        "text": "{{soon}}",
+        "style": "title",
+        "detail": "end within 60 days",
+        "icon": "shield.fill",
+        "tint": "#0F766E"
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 12,
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 110,
+            "radius": 22
+          },
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "ENDS FIRST",
+                "style": "caption2",
+                "tint": "#0F766E"
+              },
+              {
+                "type": "text",
+                "text": "**{{next}}**",
+                "style": "headline"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "text",
+                "text": "in {{days}} days",
+                "style": "caption",
+                "tint": "#44625E"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "circular": [
+      {
+        "type": "gauge",
+        "style": "circular",
+        "value": "{{soon}}",
+        "max": "{{items}}",
+        "icon": "shield.fill",
+        "badge": "{{soon}}"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "🛡️ {{soon}} warranties ending"
+      }
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+# Water · goal and reminders: one series of reminders through the day (at most 10 of the 30 a space can have).
+root = Page([form], "Goal and reminders")
+
+$goal = 2500
+$start = "09:00"
+$gap = 2
+$times = 6
+waiting = Query("pending", {}, {rows: []})
+plan = Query("query", {sql: "SELECT date('now', 'localtime', CASE WHEN time('now', 'localtime') > ? THEN '+1 day' ELSE '+0 day' END) || 'T' || ? AS at", params: [$start, $start]}, {rows: [{at: ""}]})
+save = Mutation("run", {sql: "UPDATE settings SET goal = CAST(? AS INTEGER), start = ?, gap = CAST(? AS INTEGER), times = CAST(? AS INTEGER) WHERE id = 1", params: [$goal, $start, $gap, $times]})
+stop = Mutation("cancel", {id: "water"})
+again = Mutation("notify", {title: "Time for a glass of water", body: "A few sips keep the ring moving.", at: plan.rows[0].at, id: "water", every: $gap * 3600, times: $times})
+off = Mutation("cancel", {id: "water"})
+
+form = Form("goal", Buttons([Button("Save and remind me", Action([@Run(save), @Run(stop), @Run(again), @Haptic("success"), @Back()]), "default", "lg"), Button("Save without reminders", Action([@Run(save), @Run(off), @Back()]), "outline")], "column"), [FormControl("Daily goal: " + $goal + " ml", Stepper("goal", 500, 5000, 250, $goal)), FormControl("First reminder at", TimePicker("start", $start)), FormControl("Every " + $gap + ($gap == 1 ? " hour" : " hours"), Stepper("gap", 1, 4, 1, $gap)), FormControl($times + " reminders a day", Stepper("times", 1, 10, 1, $times)), TextContent(@Count(waiting.rows) + " of 30 reminders are waiting in this space. These use " + $times + ".", "small")])

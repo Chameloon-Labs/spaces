@@ -1,0 +1,12 @@
+root = Page([hero, form, extras, calendar, saved])
+hero = Hero("Forms", "Every input a page can show. Name, email and the text field save to this space's database.", "📝")
+$name = ""
+$email = ""
+$bio = ""
+$plan = "Pro"
+save = Mutation("run", {sql: "INSERT INTO signups (name, email, bio, plan) SELECT trim(?), nullif(trim(?), ''), nullif(trim(?), ''), ? WHERE trim(?) <> ''", params: [$name, $email, $bio, $plan, $name]})
+form = Card([CardHeader("Sign up", "Saved on this phone"), Chips(["Basic", "Pro", "Team"], $plan), Form("signup", Buttons([Button("Save " + $plan + " sign-up", Action([@Run(save), @Run(signups), @Reset($name, $email, $bio)]), "default"), Button("Clear", Action([@Reset($name, $email, $bio)]), "ghost")], "row"), [FormControl("Name", Input("name", "Ada Lovelace", "text", null, $name)), FormControl("Email", Input("email", "ada@example.com", "email", null, $email)), FormControl("About you", TextArea("bio", "What are you building?", 3, null, $bio))])])
+extras = Card([CardHeader("More inputs", "They draw and remember their value on this page; binding them to a query comes next"), Form("prefs", Buttons([]), [FormControl("Plan", Select("plan", [SelectItem("basic", "Basic"), SelectItem("pro", "Pro"), SelectItem("team", "Team")], "Choose a plan")), FormControl("Start date", DatePicker("start", "Pick a date")), FormControl("Team size", Slider("size", 1, 50, 1, 8)), FormControl("Interests", CheckBoxGroup("interests", [CheckBoxItem("design", "Design"), CheckBoxItem("code", "Code"), CheckBoxItem("data", "Data")])), FormControl("Contact me by", RadioGroup("contact", [RadioItem("email", "Email"), RadioItem("push", "Notification"), RadioItem("none", "Not at all")])), FormControl("Notifications", SwitchGroup("notify", [SwitchItem("news", "Product news"), SwitchItem("tips", "Weekly tips")]))]), Label("A Label can stand on its own, too.")])
+calendar = Card([CardHeader("Calendar", "A range picker"), CalendarBlock("range", null, 1)])
+signups = Query("query", {sql: "SELECT name, coalesce(email, '—') AS email, plan, strftime('%H:%M', at, 'localtime') AS time FROM signups ORDER BY id DESC LIMIT 10"}, {rows: []})
+saved = @Count(signups.rows) == 0 ? Alert("Nothing saved yet", "Fill in a name above and save.", "info") : Card([CardHeader("Saved sign-ups", "from this space's database"), Table([Col("Name"), Col("Email"), Col("Plan"), Col("Time")], @Each(signups.rows, "s", [s.name, s.email, s.plan, s.time]))])

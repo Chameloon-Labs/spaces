@@ -1,0 +1,117 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Time clock",
+  "version": 4,
+  "minApp": "1.2",
+  "description": "Start work, break, business trip and end of day: one tap from the Lock Screen or Shortcuts.",
+  "icon": "/img/icon.png",
+  "tint": "#0F766E",
+  "changes": "Hours worked, break and status as Shortcuts values",
+  "schema": [
+    "CREATE TABLE entries (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL CHECK (kind IN ('work', 'break', 'trip', 'end')), at TEXT NOT NULL, place TEXT)"
+  ],
+  "actions": [
+    {
+      "id": "work",
+      "title": "Start work",
+      "symbol": "play.circle",
+      "sql": "INSERT INTO entries (kind, at, place) VALUES ('work', :today || ' ' || :time, NULL)",
+      "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t",
+      "say": "Work started. Worked {{worked}}, break {{paused}} today.",
+      "when": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k IN ('none', 'end', 'break')",
+      "unavailable": "You're already working."
+    },
+    {
+      "id": "break",
+      "title": "Start break",
+      "symbol": "cup.and.saucer",
+      "sql": "INSERT INTO entries (kind, at, place) VALUES ('break', :today || ' ' || :time, NULL)",
+      "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t",
+      "say": "Break started. Worked {{worked}}, break {{paused}} today.",
+      "when": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k IN ('work', 'trip')",
+      "unavailable": "You can only start a break while working."
+    },
+    {
+      "id": "trip",
+      "title": "Business trip",
+      "symbol": "car",
+      "sql": "INSERT INTO entries (kind, at, place) VALUES ('trip', :today || ' ' || :time, NULL)",
+      "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t",
+      "say": "Business trip started. Worked {{worked}}, break {{paused}} today.",
+      "when": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k = 'work'",
+      "unavailable": "Start a business trip while you're working."
+    },
+    {
+      "id": "end-office",
+      "title": "End (office)",
+      "symbol": "building.2",
+      "sql": "INSERT INTO entries (kind, at, place) VALUES ('end', :today || ' ' || :time, 'Office')",
+      "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t",
+      "say": "Done at the office. Worked {{worked}}, break {{paused}}.",
+      "when": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k IN ('work', 'break', 'trip')",
+      "unavailable": "You haven't started work, or you already ended the day."
+    },
+    {
+      "id": "end-home",
+      "title": "End (home office)",
+      "symbol": "house",
+      "sql": "INSERT INTO entries (kind, at, place) VALUES ('end', :today || ' ' || :time, 'Home office')",
+      "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t",
+      "say": "Done at home. Worked {{worked}}, break {{paused}}.",
+      "when": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k IN ('work', 'break', 'trip')",
+      "unavailable": "You haven't started work, or you already ended the day."
+    }
+  ],
+  "card": {
+    "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' WHEN (SELECT kind FROM last) = 'end' THEN 'Done' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused, work, brk FROM t",
+    "motd": "**{{state}}** · Break {{paused}} · Work {{worked}}",
+    "stats": [
+      {
+        "label": "Work",
+        "value": "{{worked}}"
+      },
+      {
+        "label": "Break",
+        "value": "{{paused}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "minimal",
+    "font": "rounded"
+  },
+  "toggle": {
+    "title": "Work",
+    "on": "work",
+    "off": "end-office",
+    "isOn": "SELECT 1 FROM (SELECT coalesce((SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1), 'none') AS k) WHERE k IN ('work', 'break', 'trip')",
+    "symbol": "clock",
+    "onLabel": "Working",
+    "offLabel": "Not working"
+  },
+  "menu": {
+    "title": "{{title}}",
+    "subtitle": "Work {{worked}} · Break {{paused}}",
+    "query": "WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind, substr(at, 12, 5) AS hm FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE (SELECT kind FROM last) WHEN 'work' THEN 'Working since ' || (SELECT hm FROM last) WHEN 'trip' THEN 'On a business trip since ' || (SELECT hm FROM last) WHEN 'break' THEN 'On a break since ' || (SELECT hm FROM last) WHEN 'end' THEN 'Done at ' || (SELECT hm FROM last) ELSE 'Not started' END AS title, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t"
+  },
+  "values": [
+    {
+      "id": "state",
+      "title": "Status today",
+      "type": "text",
+      "query": "SELECT state FROM (WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t)"
+    },
+    {
+      "id": "worked",
+      "title": "Hours worked today",
+      "type": "text",
+      "query": "SELECT worked FROM (WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t)"
+    },
+    {
+      "id": "paused",
+      "title": "Break today",
+      "type": "text",
+      "query": "SELECT paused FROM (WITH e AS (SELECT kind, at, coalesce(lead(at) OVER (ORDER BY at, rowid), CASE WHEN kind = 'end' THEN at ELSE datetime('now', 'localtime') END) AS nxt FROM entries WHERE date(at) = date('now', 'localtime')), m AS (SELECT kind, coalesce(sum(round((julianday(nxt) - julianday(at)) * 1440)), 0) AS n FROM e GROUP BY kind), t AS (SELECT CAST(coalesce(sum(CASE WHEN kind IN ('work', 'trip') THEN n END), 0) AS INTEGER) AS work, CAST(coalesce(sum(CASE WHEN kind = 'break' THEN n END), 0) AS INTEGER) AS brk FROM m), last AS (SELECT kind FROM entries WHERE date(at) = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1) SELECT CASE WHEN (SELECT kind FROM last) IS NULL THEN 'Not started' ELSE 'Running' END AS state, printf('%d:%02d', work / 60, work % 60) AS worked, printf('%d:%02d', brk / 60, brk % 60) AS paused FROM t)"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+# Pet care · one pet, opened with its $id: Fed button, the week, medicine and vet dates.
+root = Page([hero, feedBtn, tabs, del], p.rows[0].name)
+
+p = Query("query", {sql: "SELECT name, coalesce(photo, '/img/dog.svg') AS photo, meals, kind, (SELECT count(*) FROM feedings WHERE pet = pets.id AND date(at) = date('now', 'localtime')) AS fed, coalesce((SELECT strftime('%H:%M', max(at)) FROM feedings WHERE pet = pets.id AND date(at) = date('now', 'localtime')), '') AS last_at FROM pets WHERE id = ?", params: [$id]}, {rows: [{name: "", photo: "/img/dog.svg", meals: 2, kind: "dog", fed: 0, last_at: ""}]})
+
+hero = Hero(p.rows[0].name, p.rows[0].fed >= p.rows[0].meals ? "Fed for today" : p.rows[0].fed + " of " + p.rows[0].meals + " meals given" + (p.rows[0].last_at == "" ? "" : ", last at " + p.rows[0].last_at), p.rows[0].photo, [p.rows[0].kind, p.rows[0].meals + " meals a day"])
+
+feed = Mutation("run", {sql: "INSERT INTO feedings (pet) VALUES (?)", params: [$id]})
+undo = Mutation("run", {sql: "DELETE FROM feedings WHERE rowid = (SELECT max(rowid) FROM feedings WHERE pet = ? AND date(at) = date('now', 'localtime'))", params: [$id]})
+feedBtn = Buttons([Button("🍽️ Fed " + p.rows[0].name, Action([@Run(feed), @Haptic("success"), @Run(p), @Run(week)]), "default", "lg"), p.rows[0].fed == 0 ? null : Button("Undo the last one", Action([@Run(undo), @Run(p), @Run(week)]), "outline")], "column")
+
+# Meals per day for the last 7 days.
+week = Query("query", {sql: "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT strftime('%a', 'now', 'localtime', '-' || d.n || ' days') AS label, (SELECT count(*) FROM feedings WHERE pet = ? AND date(at) = date('now', 'localtime', '-' || d.n || ' days')) AS n FROM d", params: [$id]}, {rows: []})
+chart = Card([CardHeader("Meals this week", "Per day"), BarChart(week.rows.label, [Series("Meals", week.rows.n)])])
+
+# Medicine: Given ✓ writes today and sets the next reminder on this phone, one id per medicine.
+meds = Query("query", {sql: "SELECT id, name, every, at, CAST(julianday(date(last, '+' || every || ' days')) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM meds WHERE pet = ? ORDER BY d", params: [$id]}, {rows: []})
+$picked = ""
+next = Query("query", {sql: "SELECT name, date('now', 'localtime', '+' || every || ' days') || 'T' || at AS at FROM meds WHERE id = ?", params: [$picked]}, {rows: [{name: "", at: ""}]})
+given = Mutation("run", {sql: "UPDATE meds SET last = date('now', 'localtime') WHERE id = ?", params: [$picked]})
+stopMed = Mutation("cancel", {id: "med-" + $picked})
+remMed = Mutation("notify", {title: next.rows[0].name + " for " + p.rows[0].name, body: "It's time for the next dose.", at: next.rows[0].at, id: "med-" + $picked})
+medList = @Count(meds.rows) == 0 ? TextContent("No medicine. Nothing to remember.", "small") : List(@Each(meds.rows, "m", Row(m.name, m.d < 0 ? "Overdue" : m.d == 0 ? "Due today" : "Next in " + m.d + " days", "icon:droplet", "Given ✓", Action([@Set($picked, m.id), @Run(stopMed), @Run(given), @Run(remMed), @Haptic("success"), @Confetti(), @Run(meds), @Run(waiting)]))), "Tap when you've given it")
+
+# Vet dates, soonest first; tap one to be reminded the day before at 09:00.
+vets = Query("query", {sql: "SELECT id, what, strftime('%d.%m.%Y', day) AS day, CAST(julianday(day) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM vets WHERE pet = ? AND done = 0 AND day >= date('now', 'localtime') ORDER BY day", params: [$id]}, {rows: []})
+$vet = ""
+vplan = Query("query", {sql: "SELECT what, date(day, '-1 day') || 'T09:00' AS at, 'Tomorrow: ' || what AS title FROM vets WHERE id = ?", params: [$vet]}, {rows: [{what: "", at: "", title: ""}]})
+remVet = Mutation("notify", {title: vplan.rows[0].title, body: p.rows[0].name + " has an appointment.", at: vplan.rows[0].at, id: "vet-" + $vet})
+vetList = @Count(vets.rows) == 0 ? TextContent("No vet date. Add one below.", "small") : List(@Each(vets.rows, "v", Row(v.what, v.day, "icon:calendar", v.d == 0 ? "Today" : "in " + v.d + " d", Action([@Set($vet, v.id), @Run(remVet), @Haptic("success"), @Run(waiting)]))), "Tap a date to be reminded the day before")
+
+$what = ""
+$day = ""
+addVet = Mutation("run", {sql: "INSERT INTO vets (pet, what, day) SELECT ?, trim(?), ? WHERE trim(?) <> '' AND ? <> ''", params: [$id, $what, $day, $what, $day]})
+addV = DrawerBlock("➕ Vet date", "New vet date", "What it is and when.", [Form("vet", Buttons([Button("Save", Action([@Run(addVet), @Run(vets), @Reset($what, $day)]), "default")]), [FormControl("What", Input("what", "Vaccination", "text", null, $what)), FormControl("On", DatePicker("day", "Pick a date", $day))])], "outline")
+
+waiting = Query("pending", {}, {rows: []})
+budget = TextContent(@Count(waiting.rows) + " of 30 reminders are waiting in this space. Each medicine and vet date uses one.", "small")
+
+tabs = Tabs([TabItem("care", "Week", [chart]), TabItem("meds", "Medicine", [medList]), TabItem("vet", "Vet", [vetList, addV, budget])], "care")
+
+rm0 = Mutation("run", {sql: "DELETE FROM feedings WHERE pet = ?", params: [$id]})
+rm1 = Mutation("run", {sql: "DELETE FROM meds WHERE pet = ?", params: [$id]})
+rm2 = Mutation("run", {sql: "DELETE FROM vets WHERE pet = ?", params: [$id]})
+rm3 = Mutation("run", {sql: "DELETE FROM pets WHERE id = ?", params: [$id]})
+del = AlertDialogBlock("Remove pet", "Remove " + p.rows[0].name + "?", "Meals, medicine and vet dates are deleted from this phone.", "Remove", "Keep them", "destructive", Action([@Run(rm0), @Run(rm1), @Run(rm2), @Run(rm3), @Back()]))

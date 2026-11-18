@@ -1,0 +1,59 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Bike log",
+  "version": 8,
+  "minApp": "1.2",
+  "description": "Every ride on every bike: this week's km, planned rides to tick off, and when each bike is due for service.",
+  "changes": "A speed and cadence tile for a Bluetooth sensor (no sensor, nothing measured)",
+  "icon": "/img/icon.png",
+  "tint": "#0284C7",
+  "permissions": [
+    "camera",
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE bikes (id TEXT PRIMARY KEY, name TEXT NOT NULL, art TEXT NOT NULL, every INTEGER NOT NULL DEFAULT 500, km_base INTEGER NOT NULL DEFAULT 0, serviced_at INTEGER NOT NULL DEFAULT 0, sort INTEGER NOT NULL DEFAULT 0)",
+    "CREATE TABLE rides (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), bike TEXT NOT NULL, name TEXT NOT NULL, km REAL NOT NULL, day TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 1, by TEXT, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO bikes (id, name, art, every, km_base, serviced_at, sort) VALUES ('commuter', 'Commuter', '/img/commuter.svg', 500, 1240, 1060, 0), ('gravel', 'Gravel bike', '/img/gravel.svg', 500, 860, 761, 1), ('road', 'Road bike', '/img/road.svg', 1000, 2100, 1713, 2)",
+    "INSERT INTO rides (id, bike, name, km, day, done) VALUES ('r01', 'commuter', 'Commute', 12, date('now', 'localtime', '-49 days'), 1), ('r02', 'commuter', 'Commute', 12, date('now', 'localtime', '-50 days'), 1), ('r03', 'commuter', 'Commute', 12, date('now', 'localtime', '-52 days'), 1), ('r04', 'gravel', 'Gravel loop', 28, date('now', 'localtime', '-54 days'), 1), ('r05', 'commuter', 'Commute', 12, date('now', 'localtime', '-42 days'), 1), ('r06', 'commuter', 'Commute', 12, date('now', 'localtime', '-44 days'), 1), ('r07', 'commuter', 'Commute', 12, date('now', 'localtime', '-45 days'), 1), ('r08', 'road', 'Road spin', 24, date('now', 'localtime', '-46 days'), 1), ('r09', 'gravel', 'Forest track', 32, date('now', 'localtime', '-48 days'), 1), ('r10', 'commuter', 'Commute', 12, date('now', 'localtime', '-35 days'), 1), ('r11', 'commuter', 'Commute', 12, date('now', 'localtime', '-36 days'), 1), ('r12', 'commuter', 'Commute', 12, date('now', 'localtime', '-38 days'), 1), ('r13', 'road', 'Road spin', 42, date('now', 'localtime', '-40 days'), 1), ('r14', 'commuter', 'Commute', 12, date('now', 'localtime', '-28 days'), 1), ('r15', 'commuter', 'Commute', 12, date('now', 'localtime', '-29 days'), 1), ('r16', 'commuter', 'Commute', 12, date('now', 'localtime', '-30 days'), 1), ('r17', 'commuter', 'Commute', 12, date('now', 'localtime', '-31 days'), 1), ('r18', 'gravel', 'Lake loop', 40, date('now', 'localtime', '-33 days'), 1), ('r19', 'road', 'Hill climb', 30, date('now', 'localtime', '-34 days'), 1), ('r20', 'commuter', 'Commute', 12, date('now', 'localtime', '-21 days'), 1), ('r21', 'commuter', 'Commute', 12, date('now', 'localtime', '-23 days'), 1), ('r22', 'commuter', 'Commute', 12, date('now', 'localtime', '-24 days'), 1), ('r23', 'road', 'Road spin', 25, date('now', 'localtime', '-25 days'), 1), ('r24', 'gravel', 'Gravel loop', 40, date('now', 'localtime', '-27 days'), 1), ('r25', 'commuter', 'Commute', 12, date('now', 'localtime', '-14 days'), 1), ('r26', 'commuter', 'Commute', 12, date('now', 'localtime', '-15 days'), 1), ('r27', 'commuter', 'Commute', 12, date('now', 'localtime', '-16 days'), 1), ('r28', 'commuter', 'Commute', 12, date('now', 'localtime', '-17 days'), 1), ('r29', 'road', 'Coast ride', 54, date('now', 'localtime', '-19 days'), 1), ('r30', 'gravel', 'Forest track', 24, date('now', 'localtime', '-20 days'), 1), ('r31', 'commuter', 'Commute', 12, date('now', 'localtime', '-7 days'), 1), ('r32', 'commuter', 'Commute', 12, date('now', 'localtime', '-8 days'), 1), ('r33', 'commuter', 'Commute', 12, date('now', 'localtime', '-10 days'), 1), ('r34', 'gravel', 'Lake loop', 43, date('now', 'localtime', '-11 days'), 1), ('r35', 'road', 'Hill climb', 30, date('now', 'localtime', '-13 days'), 1), ('r36', 'commuter', 'Commute', 12, date('now', 'localtime', '-1 days'), 1), ('r37', 'commuter', 'Commute', 12, date('now', 'localtime', '-2 days'), 1), ('r38', 'road', 'Evening spin', 18, date('now', 'localtime', '-3 days'), 1), ('r39', 'gravel', 'Gravel loop', 34, date('now', 'localtime', '-5 days'), 1), ('r40', 'commuter', 'Commute', 12, date('now', 'localtime', '-6 days'), 1), ('plan-lake', 'gravel', 'Lake loop', 45, date('now', 'localtime', '+2 days'), 0), ('plan-market', 'commuter', 'Market ride', 8, date('now', 'localtime', '+1 days'), 0), ('plan-hills', 'road', 'Hill repeats', 30, date('now', 'localtime', '+4 days'), 0)",
+    "CREATE TABLE trip (id INTEGER PRIMARY KEY AUTOINCREMENT, bike TEXT NOT NULL, since TEXT NOT NULL)"
+  ],
+  "actions": [
+    {
+      "id": "start-ride",
+      "title": "Start ride",
+      "symbol": "figure.outdoor.cycle",
+      "sql": "INSERT INTO trip (bike, since) SELECT 'commuter', :today || ' ' || :time WHERE NOT EXISTS (SELECT 1 FROM trip)",
+      "query": "SELECT 'Commuter' AS bike, cast(round(every - (km_base + coalesce((SELECT sum(km) FROM rides WHERE bike = 'commuter' AND done = 1), 0) - serviced_at)) AS INTEGER) AS left FROM bikes WHERE id = 'commuter'",
+      "say": "Ride started on the {{bike}}. {{left}} km to the next service."
+    },
+    {
+      "id": "end-ride",
+      "title": "End ride",
+      "symbol": "flag.checkered",
+      "sql": "DELETE FROM trip",
+      "say": "Ride ended. Log the km in Bike log.",
+      "when": "SELECT 1 FROM trip",
+      "unavailable": "No ride is running."
+    }
+  ],
+  "card": {
+    "query": "SELECT printf('%.0f', coalesce(sum(km), 0)) AS km, count(*) AS n FROM rides WHERE done = 1 AND day > date('now', 'localtime', '-7 days')",
+    "motd": "**{{km}} km** this week",
+    "stats": [
+      {
+        "label": "Rides",
+        "value": "{{n}}"
+      },
+      {
+        "label": "Week",
+        "value": "{{km}} km"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "bold",
+    "font": "rounded",
+    "radius": 22
+  }
+}

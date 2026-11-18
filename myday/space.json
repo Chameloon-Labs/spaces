@@ -1,0 +1,39 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "My Day",
+  "version": 1,
+  "description": "One calm plan for the whole day: morning routine, the market list, today's spending and tonight's garden party.",
+  "icon": "/img/icon.png",
+  "tint": "#2F5BEA",
+  "schema": [
+    "CREATE TABLE routine (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), n INTEGER NOT NULL, title TEXT NOT NULL, icon TEXT NOT NULL DEFAULT 'sun', at TEXT NOT NULL DEFAULT '', done INTEGER NOT NULL DEFAULT 0)",
+    "INSERT INTO routine (id, n, title, icon, at, done) VALUES ('r1',1,'Wake up, no snooze','alarm-clock','07:00',1),('r2',2,'Shower','droplets','07:10',0),('r3',3,'Coffee and toast','coffee','07:25',0),('r4',4,'Stretch for 5 minutes','heart','07:40',0),('r5',5,'Water the plants','sprout','07:50',0),('r6',6,'Pack the bag','home','08:00',0)",
+    "CREATE TABLE shop (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), n INTEGER NOT NULL, name TEXT NOT NULL, qty TEXT NOT NULL DEFAULT '', icon TEXT NOT NULL DEFAULT 'cart', got INTEGER NOT NULL DEFAULT 0)",
+    "INSERT INTO shop (id, n, name, qty, icon, got) VALUES ('s1',1,'Tomatoes','500 g','cart',0),('s2',2,'Mozzarella','2 balls','cart',0),('s3',3,'Fresh basil','1 bunch','leaf',0),('s4',4,'Sourdough bread','1 loaf','cart',0),('s5',5,'Lemons','4','cart',0),('s6',6,'Olive oil','1 bottle','droplet',0)",
+    "CREATE TABLE spend (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), what TEXT NOT NULL, icon TEXT NOT NULL DEFAULT 'wallet', amount REAL NOT NULL, cat TEXT NOT NULL DEFAULT 'Food', created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO spend (id, what, icon, amount, cat, created) VALUES ('p1','Bakery croissant','coffee',3.2,'Food',datetime('now','-3 minutes')),('p2','Tram ticket','car',2.9,'Travel',datetime('now','-2 minutes')),('p3','Market tomatoes','cart',5.6,'Food',datetime('now','-1 minutes'))",
+    "CREATE TABLE guests (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), n INTEGER NOT NULL, name TEXT NOT NULL, key TEXT NOT NULL DEFAULT 'you', status TEXT NOT NULL DEFAULT 'yes', bring TEXT NOT NULL DEFAULT '')",
+    "INSERT INTO guests (id, n, name, key, status, bring) VALUES ('g1',1,'Lea (host)','lea','yes','Lights and snacks'),('g2',2,'Mia','mia','yes','Cake'),('g3',3,'Jonas','jonas','yes','Music'),('g4',4,'Sam','sam','maybe',''),('g5',5,'Noah','noah','no',''),('g6',6,'Zoe','zoe','maybe','')"
+  ],
+  "card": {
+    "query": "SELECT (SELECT count(*) FROM routine WHERE done = 1) AS rd, (SELECT count(*) FROM routine) AS rt, (SELECT round(25 - coalesce(sum(amount), 0), 2) FROM spend WHERE date(created, 'localtime') = date('now', 'localtime')) AS left",
+    "motd": "Routine **{{rd}}/{{rt}}** · **{{left}} €** left today",
+    "stats": [
+      {
+        "label": "Routine",
+        "value": "{{rd}}/{{rt}}"
+      },
+      {
+        "label": "Left today",
+        "value": "{{left}} €"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "rounded",
+    "radius": 28,
+    "background": "/img/bg.jpg"
+  },
+  "changes": "Four parts of one day: a routine checklist, a market list, today's budget and an evening RSVP"
+}

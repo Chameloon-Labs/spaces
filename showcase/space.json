@@ -1,0 +1,248 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Showcase",
+  "version": 4,
+  "changes": "A long form in a bottom sheet on Dialogs & drawers",
+  "description": "Every component a space can draw and every phone feature it can ask for, on real data.",
+  "icon": "/img/icon.png",
+  "tint": "#7C3AED",
+  "permissions": [
+    "camera",
+    "photos",
+    "files",
+    "location",
+    "notifications"
+  ],
+  "pageScroll": {
+    "chat": "bottom"
+  },
+  "schema": [
+    "CREATE TABLE tasks (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), title TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0, priority TEXT NOT NULL DEFAULT 'Normal', due TEXT, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE sales (month TEXT NOT NULL, product TEXT NOT NULL, units INTEGER NOT NULL, revenue REAL NOT NULL)",
+    "CREATE TABLE messages (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT NOT NULL, me INTEGER NOT NULL DEFAULT 0, at TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE photos (id INTEGER PRIMARY KEY AUTOINCREMENT, src TEXT NOT NULL, alt TEXT)",
+    "CREATE TABLE files (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, type TEXT, size INTEGER, uri TEXT NOT NULL, at TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE signups (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT, bio TEXT, plan TEXT, at TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO tasks (title, done, priority, due) VALUES ('Sketch the home screen', 1, 'High', date('now', '-2 days')), ('Write the space.json', 1, 'Normal', date('now', '-1 days')), ('Try every component', 0, 'High', date('now')), ('Share it with a friend', 0, 'Low', date('now', '+3 days')), ('Add a widget card', 0, 'Normal', date('now', '+1 days'))",
+    "INSERT INTO sales (month, product, units, revenue) VALUES ('2026-06', 'Basic', 40, 360), ('2026-06', 'Pro', 22, 638), ('2026-06', 'Team', 6, 594), ('2026-07', 'Basic', 48, 432), ('2026-07', 'Pro', 31, 899), ('2026-07', 'Team', 13, 1287), ('2026-08', 'Basic', 46, 414), ('2026-08', 'Pro', 30, 870), ('2026-08', 'Team', 10, 990), ('2026-09', 'Basic', 54, 486), ('2026-09', 'Pro', 39, 1131), ('2026-09', 'Team', 17, 1683), ('2026-10', 'Basic', 52, 468), ('2026-10', 'Pro', 38, 1102), ('2026-10', 'Team', 14, 1386), ('2026-11', 'Basic', 60, 540), ('2026-11', 'Pro', 47, 1363), ('2026-11', 'Team', 21, 2079)",
+    "INSERT INTO messages (text, me, at) VALUES ('Hi! I''m the showcase assistant. I live in this space''s database, so I answer from the phone, offline.', 0, datetime('now', '-5 minutes')), ('What can a space draw?', 1, datetime('now', '-4 minutes')), ('Everything on these pages: **charts**, data tables, forms, dialogs, drawers, a chat like this one, galleries and files. Ask me for *code*, a *table* or a *plan*.', 0, datetime('now', '-4 minutes'))",
+    "INSERT INTO photos (src, alt) VALUES ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMwZWE1ZTkiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM2MzY2ZjEiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+PlO+4jzwvdGV4dD48dGV4dCB4PSIzMDAiIHk9IjMzMCIgZm9udC1zaXplPSIzNCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sSGVsdmV0aWNhIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Nb3VudGFpbnM8L3RleHQ+PC9zdmc+', 'Mountains'), ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmNTllMGIiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlYzQ4OTkiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+Plu+4jzwvdGV4dD48dGV4dCB4PSIzMDAiIHk9IjMzMCIgZm9udC1zaXplPSIzNCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sSGVsdmV0aWNhIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5CZWFjaDwvdGV4dD48L3N2Zz4=', 'Beach'), ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxNmEzNGEiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwZjc2NmUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+MsjwvdGV4dD48dGV4dCB4PSIzMDAiIHk9IjMzMCIgZm9udC1zaXplPSIzNCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sSGVsdmV0aWNhIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5Gb3Jlc3Q8L3RleHQ+PC9zdmc+', 'Forest'), ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM3YzNhZWQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxZTI5M2IiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+MgzwvdGV4dD48dGV4dCB4PSIzMDAiIHk9IjMzMCIgZm9udC1zaXplPSIzNCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sSGVsdmV0aWNhIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5DaXR5PC90ZXh0Pjwvc3ZnPg==', 'City'), ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNmOTczMTYiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNiNDUzMDkiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+PnO+4jzwvdGV4dD48dGV4dCB4PSIzMDAiIHk9IjMzMCIgZm9udC1zaXplPSIzNCIgZm9udC1mYW1pbHk9Ii1hcHBsZS1zeXN0ZW0sSGVsdmV0aWNhIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5EZXNlcnQ8L3RleHQ+PC9zdmc+', 'Desert'), ('data:image/svg+xml' || char(59) || 'base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MDAiIGhlaWdodD0iNDAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIxIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiM5M2M1ZmQiLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiM2NDc0OGIiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iNjAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ3MCIgY3k9IjkwIiByPSIxMjAiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii4xNCIvPjx0ZXh0IHg9IjMwMCIgeT0iMjE1IiBmb250LXNpemU9IjE0MCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+4p2E77iPPC90ZXh0Pjx0ZXh0IHg9IjMwMCIgeT0iMzMwIiBmb250LXNpemU9IjM0IiBmb250LWZhbWlseT0iLWFwcGxlLXN5c3RlbSxIZWx2ZXRpY2EiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPlNub3c8L3RleHQ+PC9zdmc+', 'Snow')",
+    "INSERT INTO files (name, type, size, uri) VALUES ('meeting-notes.txt', 'text/plain', 69, 'data:text/plain' || char(59) || 'base64,TWVldGluZyBub3RlcwotIFNoaXAgdGhlIHNob3djYXNlIHNwYWNlCi0gRXZlcnkgY29tcG9uZW50LCByZWFsIGRhdGEK'), ('budget.csv', 'text/csv', 39, 'data:text/csv' || char(59) || 'base64,bW9udGgsYW1vdW50CkphbiwxMjAwCkZlYiw5ODAKTWFyLDE0MzAK'), ('space.json', 'application/json', 67, 'data:application/json' || char(59) || 'base64,eyJuYW1lIjoiTXkgc3BhY2UiLCJ2ZXJzaW9uIjoxLCJwYWdlcyI6eyJob21lIjoicm9vdCA9IFBhZ2UoW10pIn19Cg==')"
+  ],
+  "card": {
+    "query": "SELECT (SELECT count(*) FROM tasks WHERE done = 0) AS open, (SELECT count(*) FROM tasks WHERE done = 1) AS done, (SELECT printf('€%,d', sum(revenue)) FROM sales WHERE month = (SELECT max(month) FROM sales)) AS revenue",
+    "motd": "**{{open}}** tasks open · {{revenue}} revenue this month",
+    "stats": [
+      {
+        "label": "Open",
+        "value": "{{open}}"
+      },
+      {
+        "label": "Done",
+        "value": "{{done}}"
+      },
+      {
+        "label": "Revenue",
+        "value": "{{revenue}}"
+      }
+    ],
+    "chart": "SELECT sum(revenue) AS revenue FROM sales GROUP BY month ORDER BY month"
+  },
+  "theme": {
+    "preset": "glow",
+    "radius": 14
+  },
+  "widget": {
+    "query": "SELECT (SELECT count(*) FROM tasks WHERE done = 0) AS open, (SELECT count(*) FROM tasks) AS total, round(1.0 * (SELECT count(*) FROM tasks WHERE done = 1) / max((SELECT count(*) FROM tasks), 1), 2) AS ratio, (SELECT printf('€%,d', sum(revenue)) FROM sales WHERE month = (SELECT max(month) FROM sales)) AS revenue, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '+25 minutes') AS focus",
+    "background": "#4C1D95,#DB2777",
+    "scheme": "dark",
+    "small": [
+      {
+        "type": "stack",
+        "axis": "z",
+        "align": "trailing",
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 70
+          },
+          {
+            "type": "stack",
+            "spacing": 2,
+            "children": [
+              {
+                "type": "text",
+                "text": "SHOWCASE",
+                "style": "caption2",
+                "tint": "#F5D0FE"
+              },
+              {
+                "type": "metric",
+                "text": "{{revenue}}",
+                "style": "title2",
+                "detail": "revenue this month"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "gauge",
+                "value": "{{ratio}}",
+                "badge": "{{open}} open",
+                "tint": "#F0ABFC"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 12,
+        "children": [
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "Every node type",
+                "style": "caption",
+                "tint": "#F5D0FE"
+              },
+              {
+                "type": "metric",
+                "text": "{{revenue}}",
+                "style": "title2",
+                "detail": "{{open}} of {{total}} tasks open"
+              },
+              {
+                "type": "stack",
+                "axis": "horizontal",
+                "spacing": 6,
+                "children": [
+                  {
+                    "type": "icon",
+                    "icon": "timer",
+                    "tint": "#FDE68A"
+                  },
+                  {
+                    "type": "date",
+                    "date": "{{focus}}",
+                    "style": "timer",
+                    "detail": "subheadline",
+                    "tint": "#FDE68A"
+                  }
+                ]
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "button",
+                "text": "Charts",
+                "icon": "chart.bar.fill",
+                "navigate": "charts",
+                "tint": "#A855F7"
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "style": "area",
+            "tint": "#F0ABFC",
+            "height": 110,
+            "query": "SELECT substr(month, 6, 2) AS label, sum(revenue) AS value FROM sales GROUP BY month ORDER BY month"
+          }
+        ]
+      }
+    ],
+    "large": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 54
+          },
+          {
+            "type": "stack",
+            "spacing": 0,
+            "children": [
+              {
+                "type": "text",
+                "text": "**Showcase**",
+                "style": "title3"
+              },
+              {
+                "type": "text",
+                "text": "a widget the space drew itself",
+                "style": "caption",
+                "tint": "#F5D0FE"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "divider"
+      },
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 16,
+        "children": [
+          {
+            "type": "metric",
+            "text": "{{revenue}}",
+            "style": "title2",
+            "detail": "revenue",
+            "icon": "eurosign.circle"
+          },
+          {
+            "type": "metric",
+            "text": "{{open}}/{{total}}",
+            "style": "title2",
+            "detail": "tasks open",
+            "icon": "checklist"
+          }
+        ]
+      },
+      {
+        "type": "chart",
+        "style": "bar",
+        "tint": "#F0ABFC",
+        "height": 120,
+        "query": "SELECT substr(month, 6, 2) AS label, sum(revenue) AS value, product AS series FROM sales GROUP BY month, product ORDER BY month"
+      },
+      {
+        "type": "progress",
+        "value": "{{ratio}}",
+        "text": "Tasks done",
+        "tint": "#F0ABFC"
+      }
+    ],
+    "rectangular": [
+      {
+        "type": "text",
+        "text": "**{{revenue}}** this month",
+        "style": "headline"
+      },
+      {
+        "type": "progress",
+        "value": "{{ratio}}"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "✨ {{revenue}} · {{open}} tasks open"
+      }
+    ]
+  }
+}

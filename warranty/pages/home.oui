@@ -1,0 +1,25 @@
+# Warranty locker · home: what's covered, what ends soon, every item as a tile.
+root = Page([hero, rings, grid, add, tip])
+
+# Days left per item are worked out from the day bought plus the months of cover.
+summary = Query("query", {sql: "SELECT count(*) AS n, coalesce(sum(d >= 0), 0) AS covered, coalesce(sum(d BETWEEN 0 AND 60), 0) AS soon, coalesce(sum(d < 0), 0) AS ended FROM (SELECT CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM items)"}, {rows: [{n: 0, covered: 0, soon: 0, ended: 0}]})
+
+hero = Hero(summary.rows[0].soon == 0 ? "Nothing ends soon" : summary.rows[0].soon + (summary.rows[0].soon == 1 ? " warranty ends soon" : " warranties end soon"), summary.rows[0].covered + " of " + summary.rows[0].n + " things are still covered", "/img/hero.svg", ["Receipts stay on this phone"])
+
+rings = Rings([Ring(summary.rows[0].n == 0 ? 0 : 1.0 * summary.rows[0].covered / summary.rows[0].n, summary.rows[0].covered + "/" + summary.rows[0].n, "Covered", "#0F766E"), Ring(summary.rows[0].n == 0 ? 0 : 1.0 * summary.rows[0].soon / summary.rows[0].n, "" + summary.rows[0].soon, "Ends soon", "#F59E0B"), Ring(summary.rows[0].n == 0 ? 0 : 1.0 * summary.rows[0].ended / summary.rows[0].n, "" + summary.rows[0].ended, "Ended", "#94A3B8")])
+
+# Ends-first order; ended ones go last.
+items = Query("query", {sql: "SELECT id, name, coalesce(photo, '/img/box.svg') AS photo, d, CASE WHEN d < 0 THEN 'Ended ' || strftime('%d.%m.%Y', ends) WHEN d = 0 THEN 'Ends today' WHEN d < 60 THEN d || ' days left' ELSE (d / 30) || ' months left' END AS note, CASE WHEN d < 0 THEN 'Ended' WHEN d <= 60 THEN '⚠️ soon' ELSE null END AS badge FROM (SELECT id, name, photo, date(bought, '+' || months || ' months') AS ends, CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM items) ORDER BY d < 0, d, name"}, {rows: []})
+grid = @Count(items.rows) == 0 ? Alert("Nothing in the locker yet", "Add something you bought. A photo of the receipt is enough.", "info") : Tiles(@Each(items.rows, "i", Tile(i.name, i.note, i.photo, i.badge, @Navigate("item", {id: i.id}))), 2)
+
+# The add form: name, day bought, months of cover, and a photo of the receipt.
+$name = ""
+$bought = ""
+$months = 24
+$receipt = ""
+cam = Mutation("photo", {source: "camera"})
+lib = Mutation("photo", {source: "library"})
+create = Mutation("run", {sql: "INSERT INTO items (name, bought, months, receipt) SELECT trim(?), coalesce(nullif(?, ''), date('now', 'localtime')), CAST(? AS INTEGER), nullif(?, '') WHERE trim(?) <> ''", params: [$name, $bought, $months, $receipt, $name]})
+add = DrawerBlock("➕ Add a receipt", "New item", "Take a photo of the receipt, pick the day you bought it and how long it is covered.", [Buttons([Button("📷 Receipt", Action([@Run(cam), @Set($receipt, cam.data.uri)]), "secondary"), Button("🖼️ Library", Action([@Run(lib), @Set($receipt, lib.data.uri)]), "secondary")], "row"), $receipt == "" ? null : ImageBlock($receipt, "Receipt"), Form("item", Buttons([Button("Save to the locker", Action([@Run(create), @Haptic("success"), @Run(items), @Run(summary), @Reset($name, $bought, $months, $receipt)]), "default")]), [FormControl("What is it", Input("name", "Dishwasher", "text", null, $name)), FormControl("Bought on", DatePicker("bought", "Pick a date", $bought)), FormControl("Covered for " + $months + " months", Stepper("months", 1, 120, 1, $months))])], "outline")
+
+tip = TextContent("Open an item to set a reminder before its warranty ends. Reminders are scheduled on this phone.", "small")

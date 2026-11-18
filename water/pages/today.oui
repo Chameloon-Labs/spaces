@@ -1,0 +1,7 @@
+# Water · today: every drink with its time, and how the week went.
+root = Page([stats, list], "Today")
+
+s = Query("query", {sql: "SELECT (SELECT coalesce(sum(ml), 0) FROM intake WHERE day = date('now', 'localtime')) AS ml, (SELECT count(*) FROM intake WHERE day = date('now', 'localtime')) AS n, (SELECT coalesce(CAST(round(avg(t)) AS INTEGER), 0) FROM (SELECT sum(ml) AS t FROM intake WHERE day > date('now', 'localtime', '-7 days') AND day < date('now', 'localtime') GROUP BY day)) AS avg, (SELECT count(*) FROM (SELECT day FROM intake WHERE day > date('now', 'localtime', '-7 days') GROUP BY day HAVING sum(ml) >= (SELECT goal FROM settings WHERE id = 1))) AS hit"}, {rows: [{ml: 0, n: 0, avg: 0, hit: 0}]})
+stats = Stats([Stat("Today", s.rows[0].ml + " ml", null, "💧"), Stat("Drinks", "" + s.rows[0].n, null, "🥤"), Stat("Daily average", s.rows[0].avg + " ml", "last 6 days", "📈"), Stat("Goal days", s.rows[0].hit + " of 7", null, "🎯")])
+rows = Query("query", {sql: "SELECT id, ml || ' ml' AS amount, substr(at, 1, 5) AS at, CASE WHEN ml >= 500 THEN 'Big glass' WHEN ml >= 250 THEN 'Glass' ELSE 'Sip' END AS what FROM intake WHERE day = date('now', 'localtime') ORDER BY at DESC, rowid DESC"}, {rows: []})
+list = @Count(rows.rows) == 0 ? TextContent("Nothing yet today. Tap a glass on the home page 💧", "small") : List(@Each(rows.rows, "r", Row(r.what, r.at, "icon:droplet", r.amount)), "Drinks today")

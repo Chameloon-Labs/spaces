@@ -1,0 +1,13 @@
+# My Day · morning routine
+# A checklist for 07:00: tick a step and the ring fills.
+root = Page([hero, ring, bar, list], "Morning")
+
+$picked = ""
+steps = Query("query", {sql: "SELECT id, title, 'icon:' || icon AS ic, at, done FROM routine ORDER BY n"}, {rows: []})
+prog = Query("query", {sql: "SELECT count(*) AS total, coalesce(sum(done), 0) AS done FROM routine"}, {rows: [{total: 1, done: 0}]})
+toggle = Mutation("run", {sql: "UPDATE routine SET done = 1 - done WHERE id = ?", params: [$picked]})
+
+hero = Image("/img/morning-s.png", "Good morning")
+ring = Rings([Ring(prog.rows[0].done / prog.rows[0].total, prog.rows[0].done + "/" + prog.rows[0].total, "Routine", "#F59E0B")])
+bar = Progress(@Round(prog.rows[0].done * 100 / prog.rows[0].total), prog.rows[0].done == prog.rows[0].total ? "All done, go get them" : prog.rows[0].done + " of " + prog.rows[0].total + " steps")
+list = List(@Each(steps.rows, "s", Row(s.title, s.at, s.done == 1 ? "icon:circle-check" : s.ic, s.done == 1 ? "Done" : null, Action([@Set($picked, s.id), @Run(toggle), @Run(steps), @Run(prog), @Haptic("light")]))), "Tap to tick off")

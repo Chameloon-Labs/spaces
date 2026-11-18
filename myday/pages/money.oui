@@ -1,0 +1,18 @@
+# My Day · today's money
+# 25 euros a day: what is spent, what is left, and a quick add for the usual things.
+root = Page([left, bar, quick, chart, list], "Money")
+
+$picked = ""
+sum = Query("query", {sql: "SELECT round(coalesce(sum(amount), 0), 2) AS spent, round(25 - coalesce(sum(amount), 0), 2) AS left, count(*) AS n FROM spend WHERE date(created, 'localtime') = date('now', 'localtime')"}, {rows: [{spent: 0, left: 25, n: 0}]})
+rows = Query("query", {sql: "SELECT what, 'icon:' || icon AS ic, printf('%.2f', amount) || ' €' AS amt, cat FROM spend WHERE date(created, 'localtime') = date('now', 'localtime') ORDER BY created DESC, rowid DESC"}, {rows: []})
+cats = Query("query", {sql: "SELECT round(coalesce(sum(CASE WHEN cat = 'Food' THEN amount END), 0), 2) AS food, round(coalesce(sum(CASE WHEN cat = 'Travel' THEN amount END), 0), 2) AS travel FROM spend WHERE date(created, 'localtime') = date('now', 'localtime')"}, {rows: [{food: 0, travel: 0}]})
+
+coffee = Mutation("run", {sql: "INSERT INTO spend (what, icon, amount, cat) VALUES ('Coffee', 'coffee', 4.5, 'Food')"})
+lunch = Mutation("run", {sql: "INSERT INTO spend (what, icon, amount, cat) VALUES ('Sandwich', 'utensils', 6.2, 'Food')"})
+bus = Mutation("run", {sql: "INSERT INTO spend (what, icon, amount, cat) VALUES ('Bus ticket', 'car', 2.9, 'Travel')"})
+
+left = Metric(sum.rows[0].left + " €", "Left today", sum.rows[0].spent + " € spent of 25 €", sum.rows[0].left < 5 ? "careful" : "on track")
+bar = Progress(@Min([@Round(sum.rows[0].spent * 4), 100]), "Daily budget used")
+quick = Card([CardHeader("Quick add", "One tap, no typing"), Buttons([Button("☕ Coffee · 4.50", Action([@Run(coffee), @Run(sum), @Run(rows), @Run(cats), @Haptic("success")]), "default"), Button("🥪 Sandwich · 6.20", Action([@Run(lunch), @Run(sum), @Run(rows), @Run(cats), @Haptic("success")]), "secondary"), Button("🚌 Bus · 2.90", Action([@Run(bus), @Run(sum), @Run(rows), @Run(cats), @Haptic("success")]), "outline")], "column")])
+chart = Card([CardHeader("Where it went", "Each ring is a share of 25 euros"), Rings([Ring(@Min([cats.rows[0].food / 25, 1]), cats.rows[0].food + "€", "Food", "#F59E0B"), Ring(@Min([cats.rows[0].travel / 25, 1]), cats.rows[0].travel + "€", "Travel", "#2F5BEA"), Ring(@Max([0, sum.rows[0].left]) / 25, sum.rows[0].left + "€", "Left", "#16A34A")])])
+list = List(@Each(rows.rows, "r", Row(r.what, r.cat, r.ic, r.amt)), "Today")

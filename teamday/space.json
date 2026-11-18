@@ -1,0 +1,35 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Team Day",
+  "version": 1,
+  "description": "Who is in, remote or out sick today, with their excuses, and the 3 pm cake party.",
+  "icon": "/img/icon.png",
+  "tint": "#6D4AFF",
+  "schema": [
+    "CREATE TABLE team (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), n INTEGER NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'in', excuse TEXT NOT NULL DEFAULT '', me INTEGER NOT NULL DEFAULT 0, key TEXT NOT NULL DEFAULT '')",
+    "INSERT INTO team (id, n, name, role, status, excuse, me, key) VALUES ('anna',1,'Anna','Design','sick','Terrible cough',0,'anna'),('ben',2,'Ben','Engineering','sick','My cat is sick',0,'ben'),('chloe',3,'Chloe','Marketing','sick','Food poisoning (again)',0,'chloe'),('dev',4,'Dev','Engineering','sick','Migraine, no screens',0,'dev'),('elif',5,'Elif','Support','remote','Working from the sofa',0,'elif'),('finn',6,'You','Product','in','At my desk',1,'finn')",
+    "CREATE TABLE party (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), key TEXT NOT NULL, name TEXT NOT NULL, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "INSERT INTO party (id, key, name, created) VALUES ('p1','anna','Anna',datetime('now','-3 minutes')),('p2','ben','Ben',datetime('now','-2 minutes')),('p3','chloe','Chloe',datetime('now','-1 minutes'))"
+  ],
+  "card": {
+    "query": "SELECT (SELECT count(*) FROM team WHERE status = 'sick') AS sick, (SELECT count(*) FROM team) AS total",
+    "motd": "**{{sick}} of {{total}}** out sick today",
+    "stats": [
+      {
+        "label": "Out sick",
+        "value": "{{sick}}"
+      },
+      {
+        "label": "Team",
+        "value": "{{total}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "system",
+    "radius": 26,
+    "background": "/img/bg.jpg"
+  },
+  "changes": "A status board with excuses and a cake-party RSVP"
+}

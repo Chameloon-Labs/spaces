@@ -1,0 +1,18 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Parked",
+  "version": 2,
+  "description": "Where did I park? One tap saves the spot, Maps takes you back. Never leaves this phone.",
+  "icon": "pin",
+  "tint": "#2563EB",
+  "permissions": [
+    "location",
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE spots (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), label TEXT NOT NULL, lat REAL NOT NULL, lon REAL NOT NULL, accuracy INTEGER, at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ')))"
+  ],
+  "theme": {
+    "preset": "bold"
+  }
+}

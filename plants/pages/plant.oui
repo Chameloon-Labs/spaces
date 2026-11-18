@@ -1,0 +1,40 @@
+# Plants · plant page
+
+# One plant, opened from a tile on the home page with its $id.
+root = Page([hero, actions, coming, history, settings, del], p.rows[0].name)
+
+# The plant itself. params: [$id] fills the ? in the SQL. next_at is when its next reminder is due if it's watered now.
+p = Query("query", {sql: "SELECT name, coalesce(spot, '') AS spot, every, photo, remind_at, nag_every, min(nag_times, 3) AS nag_times, strftime('%d.%m.%Y', watered) AS watered, every - CAST(julianday(date('now', 'localtime')) - julianday(watered) AS INTEGER) AS left, date('now', 'localtime', '+' || every || ' days') || 'T' || remind_at AS next_at, CASE WHEN nag_every = 0 THEN 'once' WHEN nag_every < 3600 THEN 'every ' || (nag_every / 60) || ' min until watered' ELSE 'every ' || (nag_every / 3600) || ' h until watered' END AS nag FROM plants WHERE id = ?", params: [$id]}, {rows: [{name: "", spot: "", every: 7, photo: null, remind_at: "09:00", nag_every: 0, nag_times: 3, watered: "", left: 0, next_at: "", nag: "once"}]})
+
+# Its name, when it wants water next, its photo, and chips: where it stands, how often, how it reminds.
+hero = Hero(p.rows[0].name, p.rows[0].left <= 0 ? "Thirsty. Water it today." : "Next water in " + p.rows[0].left + (p.rows[0].left == 1 ? " day" : " days"), p.rows[0].photo == null ? "/img/plant.svg" : p.rows[0].photo, [p.rows[0].spot, "every " + p.rows[0].every + " days", "⏰ " + p.rows[0].remind_at + ", " + p.rows[0].nag])
+
+# Watering it: take back this round's reminders (and nags), write it down, set today as the date, then remind
+# again when it's thirsty next: once, or (nag mode) every so often until it's watered. One id per plant.
+stop = Mutation("cancel", {id: "water-" + $id})
+log = Mutation("run", {sql: "INSERT INTO waterings (plant) SELECT ? WHERE NOT EXISTS (SELECT 1 FROM waterings WHERE plant = ? AND day = date('now', 'localtime'))", params: [$id, $id]})
+water = Mutation("run", {sql: "UPDATE plants SET watered = date('now', 'localtime') WHERE id = ?", params: [$id]})
+next = Mutation("notify", {title: "Water " + p.rows[0].name, body: p.rows[0].spot == "" ? "It's thirsty today." : "In the " + p.rows[0].spot + ". It's thirsty today.", at: p.rows[0].next_at, id: "water-" + $id, every: p.rows[0].nag_every > 0 ? p.rows[0].nag_every : 3600, times: p.rows[0].nag_every > 0 ? p.rows[0].nag_times + 1 : 1})
+
+# A new photo replaces the old one.
+cam = Mutation("photo", {source: "camera"})
+setPhoto = Mutation("run", {sql: "UPDATE plants SET photo = ? WHERE id = ?", params: [cam.data.uri, $id]})
+
+# After each change, @Run the queries again so the page shows it. One primary action, full width.
+actions = Buttons([Button("💧 Watered it", Action([@Run(stop), @Run(log), @Run(water), @Run(next), @Run(p), @Run(waterings), @Run(waiting)]), "default", "lg"), Button("📷 New photo", Action([@Run(cam), @Run(setPhoto), @Run(p)]), "secondary")], "column")
+
+# The reminders still waiting for this plant (pending lists only this space's own).
+waiting = Query("pending", {id: "water-" + $id}, {rows: []})
+coming = @Count(waiting.rows) == 0 ? TextContent("No reminder waiting. Water it, or set when to be reminded below.", "small") : List(@Each(waiting.rows, "w", Row(w.title, w.when, "icon:bell")), "Coming up")
+
+# The last ten waterings, newest first; an empty list draws nothing, so say so.
+waterings = Query("query", {sql: "SELECT CASE day WHEN date('now', 'localtime') THEN 'Today' WHEN date('now', 'localtime', '-1 day') THEN 'Yesterday' ELSE strftime('%d.%m.%Y', day) END AS day FROM waterings WHERE plant = ? GROUP BY waterings.day ORDER BY waterings.day DESC LIMIT 10", params: [$id]}, {rows: []})
+history = @Count(waterings.rows) == 0 ? TextContent("Not watered yet.", "small") : List(@Each(waterings.rows, "w", Row("Watered", null, "icon:droplet", w.day)), "History")
+
+# Reminders are set on their own page: @Navigate hands over the current settings as its $variables.
+settings = Buttons([Button("Reminders", @Navigate("reminders", {id: $id, every: p.rows[0].every, time: p.rows[0].remind_at, nag: "" + p.rows[0].nag_every, times: p.rows[0].nag_times}), "outline")], "column")
+
+# Removing asks first (the dialog), then deletes the reminders, the history and the plant and goes back.
+removeLog = Mutation("run", {sql: "DELETE FROM waterings WHERE plant = ?", params: [$id]})
+remove = Mutation("run", {sql: "DELETE FROM plants WHERE id = ?", params: [$id]})
+del = AlertDialogBlock("Remove plant", "Remove " + p.rows[0].name + "?", "Its photo, watering history and reminders are deleted from this phone.", "Remove", "Keep it", "destructive", Action([@Run(stop), @Run(removeLog), @Run(remove), @Back()]))

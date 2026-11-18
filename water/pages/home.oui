@@ -1,0 +1,17 @@
+# Water · home: the ring for today and one tap per glass.
+root = Page([hero, rings, quick, done, week, more])
+
+today = Query("query", {sql: "SELECT ml, goal, CAST(round(100.0 * min(1.0, 1.0 * ml / goal) * 100) AS INTEGER) / 100.0 AS ratio, CAST(round(100.0 * ml / goal) AS INTEGER) AS pct, MAX(goal - ml, 0) AS left, glasses FROM (SELECT (SELECT coalesce(sum(ml), 0) FROM intake WHERE day = date('now', 'localtime')) AS ml, (SELECT goal FROM settings WHERE id = 1) AS goal, (SELECT count(*) FROM intake WHERE day = date('now', 'localtime')) AS glasses)"}, {rows: [{ml: 0, goal: 2500, ratio: 0, pct: 0, left: 2500, glasses: 0}]})
+
+hero = Hero(today.rows[0].left == 0 ? "Goal reached 🎉" : today.rows[0].left + " ml to go", today.rows[0].ml + " of " + today.rows[0].goal + " ml · " + today.rows[0].glasses + " drinks today", "/img/hero.svg", ["On this phone only"])
+rings = Rings([Ring(today.rows[0].ratio, today.rows[0].pct + "%", "of your goal", "#0EA5E9")])
+
+$ml = 250
+add = Mutation("run", {sql: "INSERT INTO intake (ml) VALUES (CAST(? AS INTEGER))", params: [$ml]})
+undo = Mutation("run", {sql: "DELETE FROM intake WHERE id = (SELECT id FROM intake WHERE day = date('now', 'localtime') ORDER BY at DESC, rowid DESC LIMIT 1)"})
+quick = Buttons([Button("+150", Action([@Set($ml, 150), @Run(add), @Run(today), @Run(days), @Haptic("light")]), "secondary"), Button("+250", Action([@Set($ml, 250), @Run(add), @Run(today), @Run(days), @Haptic("medium")]), "default"), Button("+500", Action([@Set($ml, 500), @Run(add), @Run(today), @Run(days), @Haptic("success")]), "secondary")], "row")
+done = today.rows[0].left == 0 ? Alert("Goal reached", "Nicely done. Everything after this is a bonus.", "success") : Buttons([Button("Undo last drink", Action([@Run(undo), @Run(today), @Run(days), @Haptic("select")]), "outline")], "column")
+
+days = Query("query", {sql: "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT CASE strftime('%w', 'now', 'localtime', '-' || d.n || ' days') WHEN '0' THEN 'Sun' WHEN '1' THEN 'Mon' WHEN '2' THEN 'Tue' WHEN '3' THEN 'Wed' WHEN '4' THEN 'Thu' WHEN '5' THEN 'Fri' ELSE 'Sat' END AS label, coalesce((SELECT sum(ml) FROM intake WHERE day = date('now', 'localtime', '-' || d.n || ' days')), 0) AS ml FROM d"}, {rows: []})
+week = Card([CardHeader("This week", "ml per day"), BarChart(days.rows.label, [Series("ml", days.rows.ml)])])
+more = Buttons([Button("Today's drinks", @Navigate("today"), "outline"), Button("Goal and reminders", @Navigate("settings"), "outline")], "column")

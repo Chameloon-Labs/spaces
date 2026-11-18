@@ -1,0 +1,48 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Focus",
+  "version": 1,
+  "minApp": "1.1",
+  "changes": "A focus timer with a countdown ring, a log of finished sessions and your streak",
+  "description": "Start a focus block, put the phone down, and get a nudge when it ends. Sessions and streak stay on this phone.",
+  "icon": "/img/icon.png",
+  "tint": "#E5484D",
+  "permissions": ["notifications"],
+  "schema": [
+    "CREATE TABLE sessions (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), label TEXT NOT NULL DEFAULT 'Focus', minutes INTEGER NOT NULL, day TEXT NOT NULL DEFAULT (date('now', 'localtime')), at TEXT NOT NULL DEFAULT (time('now', 'localtime')))",
+    "CREATE TABLE run (id INTEGER PRIMARY KEY, ends TEXT, total INTEGER NOT NULL DEFAULT 1500, label TEXT NOT NULL DEFAULT 'Focus')",
+    "INSERT INTO run (id, ends, total, label) VALUES (1, datetime('now', 'localtime', '+17 minutes', '+32 seconds'), 1500, 'Write the report')",
+    "INSERT INTO sessions (label, minutes, day, at) VALUES ('Inbox zero', 25, date('now', 'localtime'), '08:30'), ('Write the report', 25, date('now', 'localtime'), '09:10'), ('Plan the week', 50, date('now', 'localtime', '-1 day'), '14:00'), ('Reading', 25, date('now', 'localtime', '-1 day'), '10:15'), ('Design review', 50, date('now', 'localtime', '-1 day'), '16:20'), ('Study', 25, date('now', 'localtime', '-2 days'), '19:00'), ('Study', 25, date('now', 'localtime', '-2 days'), '19:30'), ('Code', 50, date('now', 'localtime', '-3 days'), '09:00'), ('Code', 50, date('now', 'localtime', '-3 days'), '10:00'), ('Code', 25, date('now', 'localtime', '-3 days'), '11:00'), ('Emails', 25, date('now', 'localtime', '-4 days'), '13:00'), ('Reading', 25, date('now', 'localtime', '-4 days'), '20:00'), ('Taxes', 50, date('now', 'localtime', '-5 days'), '11:00'), ('Writing', 25, date('now', 'localtime', '-6 days'), '08:00'), ('Writing', 25, date('now', 'localtime', '-6 days'), '08:40'), ('Writing', 25, date('now', 'localtime', '-6 days'), '09:20'), ('Cleanup', 25, date('now', 'localtime', '-8 days'), '10:00')"
+  ],
+  "card": {
+    "query": "SELECT n, mins, CASE WHEN n = 0 THEN 'Start your first block today' WHEN n = 1 THEN '**1** block done today' ELSE '**' || n || '** blocks done today' END AS headline FROM (SELECT count(*) AS n, coalesce(sum(minutes), 0) AS mins FROM sessions WHERE day = date('now', 'localtime'))",
+    "motd": "{{headline}}",
+    "stats": [{ "label": "Blocks", "value": "{{n}}" }, { "label": "Minutes", "value": "{{mins}}" }],
+    "chart": "WITH RECURSIVE d(n) AS (SELECT 13 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT coalesce((SELECT sum(minutes) FROM sessions WHERE day = date('now', 'localtime', '-' || d.n || ' days')), 0) FROM d"
+  },
+  "theme": { "preset": "bold", "radius": 22 },
+  "widget": {
+    "query": "SELECT count(*) AS n, coalesce(sum(minutes), 0) AS mins FROM sessions WHERE day = date('now', 'localtime')",
+    "background": "#FFF1F0,#FFD9D6",
+    "scheme": "light",
+    "small": [
+      { "type": "image", "url": "/img/icon.png", "height": 52, "radius": 12 },
+      { "type": "spacer" },
+      { "type": "metric", "text": "{{mins}}", "style": "title", "detail": "minutes focused", "icon": "timer", "tint": "#B91C1C" }
+    ],
+    "medium": [
+      {
+        "type": "stack", "axis": "horizontal", "spacing": 12,
+        "children": [
+          { "type": "image", "url": "/img/icon.png", "height": 100, "radius": 22 },
+          { "type": "stack", "spacing": 4, "children": [
+            { "type": "text", "text": "FOCUS TODAY", "style": "caption2", "tint": "#B91C1C" },
+            { "type": "text", "text": "**{{mins}} min**", "style": "title" },
+            { "type": "text", "text": "{{n}} blocks done", "style": "caption", "tint": "#7F1D1D" }
+          ] }
+        ]
+      }
+    ],
+    "inline": [{ "type": "text", "text": "{{mins}} min focused today" }]
+  }
+}

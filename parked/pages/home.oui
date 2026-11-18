@@ -1,0 +1,14 @@
+root = Page([hero, park, current, remind, history])
+latest = Query("query", {sql: "SELECT id, label, lat, lon, accuracy, strftime('%H:%M', at, 'localtime') AS time, CAST((julianday('now') - julianday(at)) * 1440 AS INTEGER) AS mins FROM spots ORDER BY at DESC LIMIT 1"}, {rows: []})
+all = Query("query", {sql: "SELECT id, label, lat, lon, strftime('%d.%m', at, 'localtime') AS day, strftime('%H:%M', at, 'localtime') AS time FROM spots ORDER BY at DESC LIMIT 20 OFFSET 1"}, {rows: []})
+hero = Hero(@Count(latest.rows) == 0 ? "Where did I park?" : latest.rows[0].label, @Count(latest.rows) == 0 ? "Save your spot with one tap." : "Parked at " + latest.rows[0].time + " · " + latest.rows[0].mins + " min ago", "🅿️", ["Stays on this phone"])
+$label = ""
+here = Mutation("location", {})
+save = Mutation("run", {sql: "INSERT INTO spots (label, lat, lon, accuracy) VALUES (coalesce(nullif(trim(?), ''), 'My car'), ?, ?, ?)", params: [$label, here.data.lat, here.data.lon, here.data.accuracy]})
+park = Form("park", Buttons([Button("📍 Save my spot", Action([@Run(here), @Run(save), @Run(latest), @Run(all), @Reset($label)]), "default")]), [FormControl("Where exactly? (optional)", Input("label", "Level 2, B14", "text", null, $label))])
+current = @Count(latest.rows) == 0 ? Alert("Nothing saved yet", "Your spot is saved only on this phone. No server ever sees it.", "info") : List([Row("Open in Maps", "Walk back to " + latest.rows[0].label, "🗺️", "±" + latest.rows[0].accuracy + " m", @OpenMaps(latest.rows[0].lat, latest.rows[0].lon, latest.rows[0].label))], "Your car")
+$after = "1 hour"
+$reminded = ""
+reminder = Mutation("notify", {title: "Back to your car", body: "Your parking time is almost up.", in: $after == "1 min" ? 60 : $after == "15 min" ? 900 : $after == "1 hour" ? 3600 : 7200})
+remind = Card([CardHeader("Parking meter", "A reminder before your time runs out"), Chips(["1 min", "15 min", "1 hour", "2 hours"], $after), Buttons([Button("⏰ Remind me in " + $after, Action([@Run(reminder), @Set($reminded, "We'll remind you in " + $after + ".")]), "secondary")]), $reminded == "" ? null : Alert("Reminder set", $reminded, "success")])
+history = @Count(all.rows) == 0 ? null : List(@Each(all.rows, "s", Row(s.label, s.day + " · " + s.time, "📍", null, @OpenMaps(s.lat, s.lon, s.label))), "Earlier")

@@ -1,0 +1,31 @@
+# Warranty locker · one item, opened with its $id: the receipt, the time left and the reminder.
+root = Page([hero, bar, receipt, photoBtn, remind, note, settings, del], i.rows[0].name)
+
+i = Query("query", {sql: "SELECT name, coalesce(photo, '/img/box.svg') AS photo, receipt, months, remind_days, strftime('%d.%m.%Y', bought) AS bought, strftime('%d.%m.%Y', date(bought, '+' || months || ' months')) AS ends, date(bought, '+' || months || ' months') AS ends_day, CAST(julianday(date(bought, '+' || months || ' months')) - julianday(date('now', 'localtime')) AS INTEGER) AS d, CAST(100.0 * (julianday(date('now', 'localtime')) - julianday(bought)) / max(1, julianday(date(bought, '+' || months || ' months')) - julianday(bought)) AS INTEGER) AS used, date(bought, '+' || months || ' months', '-' || remind_days || ' days') || 'T09:00' AS remind_at, date(bought, '+' || months || ' months', '-' || remind_days || ' days') < date('now', 'localtime') AS past FROM items WHERE id = ?", params: [$id]}, {rows: [{name: "", photo: "/img/box.svg", receipt: null, months: 24, remind_days: 30, bought: "", ends: "", ends_day: "", d: 0, used: 0, remind_at: "", past: 0}]})
+
+hero = Hero(i.rows[0].name, i.rows[0].d < 0 ? "Warranty ended on " + i.rows[0].ends : i.rows[0].d == 0 ? "Ends today. Claim now." : i.rows[0].d + (i.rows[0].d == 1 ? " day" : " days") + " of cover left", i.rows[0].photo, ["Bought " + i.rows[0].bought, i.rows[0].months + " months", "Ends " + i.rows[0].ends])
+
+bar = i.rows[0].d < 0 ? Alert("No longer covered", "The warranty ended on " + i.rows[0].ends + ".", "warning") : Card([Progress(i.rows[0].used > 100 ? 100 : i.rows[0].used, i.rows[0].used + "% of the warranty used"), i.rows[0].d <= 60 ? Countdown(i.rows[0].ends_day + "T23:59", "Ends in", Action([@Haptic("warning")])) : null])
+
+# The receipt photo: tap to add or replace it.
+receipt = i.rows[0].receipt == null ? TextContent("No receipt saved. Add a photo so you can show it when you claim.", "small") : ImageBlock(i.rows[0].receipt, "Receipt", "Receipt for " + i.rows[0].name)
+cam = Mutation("photo", {source: "camera"})
+setR = Mutation("run", {sql: "UPDATE items SET receipt = ? WHERE id = ?", params: [cam.data.uri, $id]})
+photoBtn = Buttons([Button(i.rows[0].receipt == null ? "📷 Add the receipt" : "📷 Replace the receipt", Action([@Run(cam), @Run(setR), @Haptic("success"), @Run(i)]), "secondary")], "column")
+
+# One reminder per item, at 09:00 the chosen number of days before the warranty ends. The plan reloads when a chip is tapped.
+$when = "30 days before"
+plan = Query("query", {sql: "SELECT CAST(substr(?, 1, instr(?, ' ') - 1) AS INTEGER) AS days, date(bought, '+' || months || ' months', '-' || CAST(substr(?, 1, instr(?, ' ') - 1) AS INTEGER) || ' days') || 'T09:00' AS at FROM items WHERE id = ?", params: [$when, $when, $when, $when, $id]}, {rows: [{days: 30, at: ""}]})
+setRem = Mutation("notify", {title: "Warranty ends soon: " + i.rows[0].name, body: "Ends " + i.rows[0].ends + ". Claim now if something is wrong.", at: plan.rows[0].at, id: "warranty-" + $id})
+stopRem = Mutation("cancel", {id: "warranty-" + $id})
+saveDays = Mutation("run", {sql: "UPDATE items SET remind_days = CAST(? AS INTEGER) WHERE id = ?", params: [plan.rows[0].days, $id]})
+remind = i.rows[0].d < 0 ? null : Card([CardHeader("Remind me", "On this phone, at 09:00"), Chips(["7 days before", "30 days before", "60 days before"], $when), Buttons([Button("⏰ Set the reminder", Action([@Run(saveDays), @Run(setRem), @Haptic("success"), @Run(waiting), @Run(all)]), "default")], "column")])
+
+waiting = Query("pending", {id: "warranty-" + $id}, {rows: []})
+all = Query("pending", {prefix: "warranty-"}, {rows: []})
+note = @Count(waiting.rows) == 0 ? TextContent("No reminder set. " + @Count(all.rows) + " of 30 reminders are waiting in this space.", "small") : List(@Each(waiting.rows, "w", Row(w.title, w.when, "icon:bell")), "Coming up")
+
+settings = Buttons([Button("Cancel the reminder", Action([@Run(stopRem), @Run(waiting), @Run(all)]), "outline")], "column")
+
+rm = Mutation("run", {sql: "DELETE FROM items WHERE id = ?", params: [$id]})
+del = AlertDialogBlock("Remove item", "Remove " + i.rows[0].name + "?", "Its receipt and reminder are deleted from this phone.", "Remove", "Keep it", "destructive", Action([@Run(stopRem), @Run(rm), @Back()]))

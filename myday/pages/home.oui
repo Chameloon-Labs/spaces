@@ -1,0 +1,8 @@
+# My Day · home page
+# The whole day as four big stickers, one ring per stop and a door into each part.
+root = Page([stops, rings], "My Day")
+
+n = Query("query", {sql: "SELECT (SELECT count(*) FROM routine WHERE done = 1) AS rd, (SELECT count(*) FROM routine) AS rt, (SELECT count(*) FROM shop WHERE got = 1) AS sd, (SELECT count(*) FROM shop) AS st, (SELECT round(25 - coalesce(sum(amount), 0), 2) FROM spend WHERE date(created, 'localtime') = date('now', 'localtime')) AS left, (SELECT count(*) FROM guests WHERE status = 'yes') AS yes, (SELECT count(*) FROM guests) AS invited"}, {rows: [{rd: 0, rt: 1, sd: 0, st: 1, left: 0, yes: 0, invited: 1}]})
+
+stops = Tiles([Tile("Morning", n.rows[0].rd + " of " + n.rows[0].rt + " done", "/img/morning-w.png", "07:00", @Navigate("morning")), Tile("Market", n.rows[0].sd + " of " + n.rows[0].st + " bought", "/img/market-w.png", "12:30", @Navigate("lunch")), Tile("Money", n.rows[0].left + " € left", "/img/money-w.png", "15:00", @Navigate("money")), Tile("Party", n.rows[0].yes + " coming", "/img/garden-w.png", "19:30", @Navigate("evening"))], 2)
+rings = Card([CardHeader("Your day so far", "A ring for every stop"), Rings([Ring(n.rows[0].rd / n.rows[0].rt, n.rows[0].rd + "/" + n.rows[0].rt, "Morning", "#F59E0B"), Ring(n.rows[0].sd / n.rows[0].st, n.rows[0].sd + "/" + n.rows[0].st, "Market", "#16A34A"), Ring(@Max([0, n.rows[0].left]) / 25, n.rows[0].left + "€", "Left", "#2F5BEA"), Ring(n.rows[0].yes / n.rows[0].invited, n.rows[0].yes + "/" + n.rows[0].invited, "Coming", "#DB2777")])])

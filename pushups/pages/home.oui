@@ -1,0 +1,16 @@
+# 30-Day Push-ups · home page
+# Today's count with a big + button, the streak, a leaderboard with the friends and a chart of the last 14 days.
+root = Page([head, stats, rings, add, board, chart], "Push-ups")
+
+me = Query("query", {sql: "SELECT coalesce(sum(n), 0) AS today, (SELECT coalesce(sum(n), 0) FROM logs WHERE who = 'You' AND created >= datetime('now', '-30 days')) AS month, 11 + (coalesce(sum(n), 0) > 0) AS streak FROM logs WHERE who = 'You' AND date(created, 'localtime') = date('now', 'localtime')"}, {rows: [{today: 0, month: 0, streak: 0}]})
+rank = Query("query", {sql: "WITH t AS (SELECT f.name, f.art, f.color, f.me, coalesce((SELECT sum(l.n) FROM logs l WHERE l.who = f.name AND date(l.created, 'localtime') = date('now', 'localtime')), 0) AS today FROM friends f) SELECT name, art, color, me, today, (SELECT count(*) + 1 FROM t t2 WHERE t2.today > t.today) AS rank FROM t ORDER BY today DESC, name"}, {rows: []})
+days = Query("query", {sql: "WITH RECURSIVE d(k) AS (SELECT 0 UNION ALL SELECT k + 1 FROM d WHERE k < 13) SELECT strftime('%d', date('now', 'localtime', '-' || (13 - k) || ' days')) AS lbl, coalesce((SELECT sum(n) FROM logs WHERE who = 'You' AND date(created, 'localtime') = date('now', 'localtime', '-' || (13 - k) || ' days')), 0) AS total FROM d ORDER BY k"}, {rows: []})
+
+plus = Mutation("run", {sql: "INSERT INTO logs (who, n) VALUES ('You', 10)"})
+
+head = Image("/img/s_pushup.png", "Push-up time")
+stats = Stats([Stat("Streak", me.rows[0].streak + " days", "keep it alive"), Stat("Challenge", "Day 12", "of 30, 18 to go")])
+rings = Card([Rings([Ring(@Min([me.rows[0].today / 50, 1]), me.rows[0].today + "", "Today", "#F2552C"), Ring(12 / 30, "12", "Day of 30", "#3B82F6"), Ring(@Min([me.rows[0].month / 1000, 1]), me.rows[0].month + "", "This month", "#16A34A")])])
+add = Buttons([Button("＋10 push-ups", Action([@Run(plus), @Run(me), @Run(rank), @Run(days), @Haptic("success"), @Sound("coin"), @Confetti()]), "default", "lg")])
+board = List(@Each(rank.rows, "r", Row("#" + r.rank + " " + r.name, r.me == 1 ? "That's you" : "Today", r.art, r.today + "")), "Leaderboard · today")
+chart = Card([CardHeader("Your last 14 days", "Push-ups per day"), LineChart(days.rows.lbl, [Series("Push-ups", days.rows.total)])])

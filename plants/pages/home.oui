@@ -1,0 +1,42 @@
+# Plants · home page
+# A page is OpenUI Lang: one name = value per statement, root is what shows.
+
+# The page, top to bottom. Every name below is defined further down.
+root = Page([hero, waterAll, grid, add])
+
+# How many plants there are, and how many are thirsty today.
+# A Query reads the space’s own SQLite database on the phone; {rows: ...} is what shows before it answers.
+summary = Query("query", {sql: "SELECT count(*) AS plants, coalesce(sum(julianday(date('now', 'localtime')) - julianday(watered) >= every), 0) AS due FROM plants"}, {rows: [{plants: 0, due: 0}]})
+
+# The headline counts thirsty plants: a ? b : c picks the words.
+hero = Hero(summary.rows[0].due == 0 ? "Everyone's watered" : summary.rows[0].due + (summary.rows[0].due == 1 ? " plant is thirsty" : " plants are thirsty"), summary.rows[0].plants + " plants on your windowsill", "/img/hero.svg")
+
+# One tap waters everything thirsty: note the watering, then reset the date.
+# A Mutation only runs when an action calls it with @Run.
+water = Mutation("run", {sql: "INSERT INTO waterings (plant) SELECT id FROM plants WHERE julianday(date('now', 'localtime')) - julianday(watered) >= every AND id NOT IN (SELECT plant FROM waterings WHERE day = date('now', 'localtime'))"})
+mark = Mutation("run", {sql: "UPDATE plants SET watered = date('now', 'localtime') WHERE julianday(date('now', 'localtime')) - julianday(watered) >= every"})
+
+# The button only shows while something is thirsty.
+waterAll = summary.rows[0].due == 0 ? null : Buttons([Button("💧 Watered all thirsty plants", Action([@Run(water), @Run(mark), @Run(plants), @Run(summary)]), "default")])
+
+# Every plant with the days left until it wants water, thirstiest first.
+plants = Query("query", {sql: "SELECT id, name, coalesce(spot, '') AS spot, coalesce(photo, '/img/plant.svg') AS photo, every - CAST(julianday(date('now', 'localtime')) - julianday(watered) AS INTEGER) AS left FROM plants ORDER BY left, name"}, {rows: []})
+
+# A tile per plant (@Each repeats one for every row); tapping opens the plant page with its id.
+grid = @Count(plants.rows) == 0 ? Alert("No plants yet", "Add your first one below.", "info") : Tiles(@Each(plants.rows, "p", Tile(p.name, p.spot, p.photo, p.left <= 0 ? "💧 today" : "in " + p.left + " d", @Navigate("plant", {id: p.id}))), 2)
+
+# What the add form holds while you type: $names are state on this page.
+$name = ""
+$spot = ""
+$every = 7
+$photo = ""
+
+# Take a photo or pick one: data.uri is where the picture landed.
+cam = Mutation("photo", {source: "camera"})
+lib = Mutation("photo", {source: "library"})
+
+# Save the new plant. Every ? takes the next value from params.
+create = Mutation("run", {sql: "INSERT INTO plants (name, spot, every, photo) SELECT trim(?), nullif(trim(?), ''), CAST(? AS INTEGER), nullif(?, '') WHERE trim(?) <> ''", params: [$name, $spot, $every, $photo, $name]})
+
+# The drawer with the form. After saving: refresh the list and the count, empty the form.
+add = DrawerBlock("➕ Add a plant", "New plant", "How often it wants water, and a photo so you know which one it is.", [Buttons([Button("📷 Photo", Action([@Run(cam), @Set($photo, cam.data.uri)]), "secondary"), Button("🖼️ Library", Action([@Run(lib), @Set($photo, lib.data.uri)]), "secondary")], "row"), $photo == "" ? null : ImageBlock($photo, "Your plant"), Form("plant", Buttons([Button("Add plant", Action([@Run(create), @Run(plants), @Run(summary), @Reset($name, $spot, $every, $photo)]), "default")]), [FormControl("Name", Input("name", "Monstera", "text", null, $name)), FormControl("Where it stands", Input("spot", "Living room", "text", null, $spot)), FormControl("Water every " + $every + ($every == 1 ? " day" : " days"), Stepper("every", 1, 30, 1, $every))])], "outline")

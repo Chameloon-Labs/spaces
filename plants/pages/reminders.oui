@@ -1,0 +1,22 @@
+# Plants · reminders: how often, at what time, and whether to keep reminding until it's watered.
+# Opened from the plant page with its $id and the current settings, which start the fields below.
+root = Page([form], "Reminders")
+
+$every = 7
+$time = "09:00"
+$nag = "0"
+$times = 3
+
+# Reminders are a budget: a space can have 30 waiting. One per plant, plus its follow-ups (at most 3), so even with
+# follow-ups on seven plants fit; the line under the fields says how many are in use.
+waiting = Query("pending", {}, {rows: []})
+
+# What the reminders become with these settings (it loads again when a field changes, so Save sees it): the day it
+# gets thirsty at the chosen time, and words that fit whether that is still to come or already late.
+plan = Query("query", {sql: "SELECT name, date(watered, '+' || CAST(? AS INTEGER) || ' days') || 'T' || ? AS at, CASE WHEN date(watered, '+' || CAST(? AS INTEGER) || ' days') < date('now', 'localtime') THEN 'Thirsty since ' || strftime('%d.%m.', date(watered, '+' || CAST(? AS INTEGER) || ' days')) || ' Water it soon.' ELSE 'It''s thirsty today.' END AS body FROM plants WHERE id = ?", params: [$every, $time, $every, $every, $id]}, {rows: [{name: "", at: "", body: ""}]})
+
+save = Mutation("run", {sql: "UPDATE plants SET every = CAST(? AS INTEGER), remind_at = ?, nag_every = CAST(? AS INTEGER), nag_times = CAST(? AS INTEGER) WHERE id = ?", params: [$every, $time, $nag, $times, $id]})
+stop = Mutation("cancel", {id: "water-" + $id})
+again = Mutation("notify", {title: "Water " + plan.rows[0].name, body: plan.rows[0].body, at: plan.rows[0].at, id: "water-" + $id, every: $nag == "0" ? 3600 : $nag, times: $nag == "0" ? 1 : $times + 1})
+
+form = Form("reminders", Buttons([Button("Save", Action([@Run(save), @Run(stop), @Run(again), @Back()]), "default", "lg")], "column"), [FormControl("Water every " + $every + ($every == 1 ? " day" : " days"), Stepper("every", 1, 30, 1, $every)), FormControl("Remind me at", TimePicker("time", $time)), FormControl("Remind again until it's watered", RadioGroup("nag", [RadioItem("0", "No, once is enough"), RadioItem("1800", "Every 30 minutes"), RadioItem("3600", "Every hour"), RadioItem("10800", "Every 3 hours")], $nag)), $nag == "0" ? null : FormControl("At most " + $times + ($times == 1 ? " more time" : " more times"), Stepper("times", 1, 3, 1, $times)), TextContent(@Count(waiting.rows) + " of 30 reminders are waiting in this space. This plant uses " + ($nag == "0" ? 1 : $times + 1) + ".", "small")])

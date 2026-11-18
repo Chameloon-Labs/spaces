@@ -1,0 +1,24 @@
+root = Page([hero, alerts, add, drawer, sheet, clear, list])
+tasks = Query("query", {sql: "SELECT id, title, done, priority, coalesce(strftime('%d.%m', due), '') AS due FROM tasks ORDER BY done, CASE priority WHEN 'High' THEN 0 WHEN 'Normal' THEN 1 ELSE 2 END, due"}, {rows: []})
+counts = Query("query", {sql: "SELECT coalesce(sum(done = 0), 0) AS open, coalesce(sum(done = 1), 0) AS done FROM tasks"}, {rows: [{open: 0, done: 0}]})
+hero = Hero(counts.rows[0].open + " open tasks", "Dialogs, drawers and confirmations, working on a real task list", "🪟")
+alerts = Card([CardHeader("Alerts", "Five variants"), Alert("Default", "Something to know.", "default"), Alert("Info", "Your data stays on this phone.", "info"), Alert("Success", "Saved.", "success"), Alert("Warning", "Almost out of space.", "warning"), Alert("Destructive", "This can't be undone.", "destructive")])
+$title = ""
+$priority = "Normal"
+create = Mutation("run", {sql: "INSERT INTO tasks (title, priority, due) SELECT trim(?), ?, date('now', '+1 day') WHERE trim(?) <> ''", params: [$title, $priority, $title]})
+add = DialogBlock("➕ New task (dialog)", "New task", "A modal dialog with a form inside. Saving closes it.", [Chips(["Low", "Normal", "High"], $priority), Form("task", Buttons([Button("Add task", Action([@Run(create), @Run(tasks), @Run(counts), @Reset($title, $priority)]), "default")]), [FormControl("Task", Input("title", "Water the plants", "text", null, $title))])], "default")
+$picked = ""
+toggle = Mutation("run", {sql: "UPDATE tasks SET done = 1 - done WHERE id = ?", params: [$picked]})
+drawer = DrawerBlock("📋 Tick off tasks (drawer)", "Tasks", "A bottom sheet. Tap a task to tick it off.", [List(@Each(tasks.rows, "t", Row(t.title, t.priority + (t.due == "" ? "" : " · due " + t.due), t.done == 1 ? "✅" : "⭕️", null, Action([@Set($picked, t.id), @Run(toggle), @Run(tasks), @Run(counts)]))))], "secondary")
+clearDone = Mutation("run", {sql: "DELETE FROM tasks WHERE done = 1"})
+clear = AlertDialogBlock("🗑️ Clear " + counts.rows[0].done + " done (confirm)", "Clear done tasks?", "Removes every ticked-off task from this phone.", "Clear", "Keep", "outline", Action([@Run(clearDone), @Run(tasks), @Run(counts)]))
+list = List(@Each(tasks.rows, "t", Row(t.title, t.priority, t.done == 1 ? "✅" : "⭕️", t.due)), "All tasks")
+$plant = ""
+$spot = ""
+$every = 7
+$at = "09:00"
+$nag = "1"
+$follow = 2
+$notes = ""
+plantTask = Mutation("run", {sql: "INSERT INTO tasks (title, priority, due) SELECT 'Water ' || trim(?) || ' at ' || ?, 'Normal', date('now', '+' || ? || ' days') WHERE trim(?) <> ''", params: [$plant, $at, $every, $plant]})
+sheet = DrawerBlock("🪴 Add a plant (long sheet)", "New plant", "A long form in a bottom sheet: it scrolls inside; pull down from the top or the grabber to close.", [Form("plant", Buttons([Button("Add plant", Action([@Run(plantTask), @Run(tasks), @Run(counts), @Reset($plant, $spot, $every, $at, $nag, $follow, $notes)]), "default")]), [FormControl("Name", Input("plant", "Monstera", "text", null, $plant)), FormControl("Where it stands", Input("spot", "Living room", "text", null, $spot)), FormControl("Water every " + $every + ($every == 1 ? " day" : " days"), Stepper("every", 1, 30, 1, $every)), FormControl("Remind me at", TimePicker("at", $at)), FormControl("Nag until watered", RadioGroup("nag", [RadioItem("0", "Once"), RadioItem("1", "Every hour"), RadioItem("3", "Every 3 hours")], $nag)), FormControl("Follow-ups", Stepper("follow", 0, 3, 1, $follow)), FormControl("Notes", TextArea("notes", "Likes rain water, no direct sun", 4, null, $notes))])], "secondary")

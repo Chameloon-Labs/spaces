@@ -1,0 +1,26 @@
+# Subscriptions · home: what it all costs, what renews next, every subscription in order.
+root = Page([hero, stats, next, list, split, add])
+
+sum = Query("query", {sql: "SELECT n, printf('%.2f', m / 100.0) AS month, printf('%.0f', m * 12 / 100.0) AS year, m FROM (SELECT count(*) AS n, coalesce(sum(CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END), 0) AS m FROM subs)"}, {rows: [{n: 0, month: "0.00", year: "0", m: 0}]})
+hero = Hero(sum.rows[0].month + " € a month", sum.rows[0].n + (sum.rows[0].n == 1 ? " subscription" : " subscriptions") + " · " + sum.rows[0].year + " € a year", "/img/hero.svg", ["Stays on this phone"])
+stats = Stats([Stat("Per year", sum.rows[0].year + " €", null, "📆"), Stat("Active", "" + sum.rows[0].n, null, "🔁"), Stat("Next 30 days", soon.rows[0].total + " €", null, "💸"), Stat("Biggest", soon.rows[0].big, null, "🏆")])
+soon = Query("query", {sql: "SELECT printf('%.2f', coalesce(sum(cents), 0) / 100.0) AS total, coalesce((SELECT name FROM subs ORDER BY CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END DESC LIMIT 1), '–') AS big FROM subs WHERE julianday(renews) - julianday(date('now', 'localtime')) <= 30"}, {rows: [{total: "0.00", big: "–"}]})
+
+# The next renewal says it plainly, with the day it charges.
+nx = Query("query", {sql: "SELECT id, name, printf('%.2f', cents / 100.0) AS price, CAST(julianday(renews) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM subs ORDER BY renews LIMIT 1"}, {rows: []})
+next = @Count(nx.rows) == 0 ? Alert("Nothing yet", "Add your first subscription below.", "info") : Alert(nx.rows[0].d == 0 ? "Renews today" : nx.rows[0].d == 1 ? "Renews tomorrow" : "Renews in " + nx.rows[0].d + " days", nx.rows[0].name + " · " + nx.rows[0].price + " €", nx.rows[0].d <= 3 ? "warning" : "info")
+
+rows = Query("query", {sql: "SELECT id, name, emoji, printf('%.2f', cents / 100.0) || ' €' || CASE cycle WHEN 'year' THEN ' / year' ELSE ' / month' END AS price, CASE WHEN d = 0 THEN 'Today' WHEN d = 1 THEN 'Tomorrow' ELSE 'In ' || d || ' days' END AS due FROM (SELECT *, CAST(julianday(renews) - julianday(date('now', 'localtime')) AS INTEGER) AS d FROM subs) ORDER BY renews"}, {rows: []})
+list = List(@Each(rows.rows, "s", Row(s.name, s.price, s.emoji, s.due, @Navigate("sub", {id: s.id}))), "Next renewals")
+
+# Where the money goes, per month, by kind.
+kinds = Query("query", {sql: "SELECT kind, CAST(round(sum(CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END) / 100.0) AS INTEGER) AS v FROM subs GROUP BY kind ORDER BY v DESC"}, {rows: []})
+split = @Count(kinds.rows) == 0 ? null : Card([CardHeader("Where it goes", "€ a month, by kind"), PieChart(@Each(kinds.rows, "k", Slice(k.kind, k.v)), true)])
+
+$name = ""
+$price = ""
+$cycle = "month"
+$renews = ""
+$kind = "Fun"
+create = Mutation("run", {sql: "INSERT INTO subs (name, kind, emoji, cents, cycle, renews) SELECT trim(?), ?, CASE ? WHEN 'Fun' THEN '🎬' WHEN 'Work' THEN '💼' WHEN 'Health' THEN '💪' WHEN 'Learning' THEN '📚' ELSE '💳' END, CAST(round(CAST(replace(?, ',', '.') AS REAL) * 100) AS INTEGER), ?, ? WHERE trim(?) <> '' AND ? <> '' AND CAST(replace(?, ',', '.') AS REAL) > 0", params: [$name, $kind, $kind, $price, $cycle, $renews, $name, $renews, $price]})
+add = DrawerBlock("➕ Add a subscription", "New subscription", "What it costs and the day it renews next.", [Form("sub", Buttons([Button("Add it", Action([@Run(create), @Run(rows), @Run(sum), @Run(soon), @Run(nx), @Run(kinds), @Haptic("success"), @Reset($name, $price, $renews)]), "default", "lg")], "column"), [FormControl("Name", Input("name", "Video streaming", "text", null, $name)), FormControl("Price in €", Input("price", "9.99", "text", null, $price)), FormControl("Every", RadioGroup("cycle", [RadioItem("month", "Month"), RadioItem("year", "Year")], $cycle)), FormControl("Renews on", DatePicker("renews", "Pick a date", $renews)), FormControl("Kind", Select("kind", [SelectItem("Fun", "Fun"), SelectItem("Work", "Work"), SelectItem("Health", "Health"), SelectItem("Learning", "Learning"), SelectItem("Other", "Other")], "Kind", $kind))])], "outline")

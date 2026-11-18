@@ -1,0 +1,126 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Plants",
+  "version": 5,
+  "changes": "At most 3 follow-ups per plant, so all your plants fit in the 30 reminders a space can have",
+  "description": "Who needs water today. A photo of each plant and a nudge when it's thirsty.",
+  "icon": "/img/icon.png",
+  "tint": "#15803D",
+  "permissions": [
+    "camera",
+    "photos",
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE plants (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, spot TEXT, every INTEGER NOT NULL DEFAULT 7, photo TEXT, watered TEXT NOT NULL DEFAULT (date('now', 'localtime')), created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE waterings (plant TEXT NOT NULL, day TEXT NOT NULL DEFAULT (date('now', 'localtime')))",
+    "INSERT INTO plants (id, name, spot, every, watered) VALUES ('monstera', 'Monstera', 'Living room', 7, date('now', 'localtime', '-8 days')), ('basil', 'Basil', 'Kitchen window', 2, date('now', 'localtime', '-2 days')), ('fern', 'Boston fern', 'Bathroom', 4, date('now', 'localtime', '-1 days')), ('cactus', 'Cactus', 'Desk', 21, date('now', 'localtime', '-5 days'))",
+    "INSERT INTO waterings (plant, day) SELECT id, watered FROM plants",
+    "UPDATE plants SET photo = '/img/' || id || '.svg' WHERE photo IS NULL AND id IN ('monstera', 'basil', 'fern', 'cactus')",
+    "ALTER TABLE plants ADD COLUMN remind_at TEXT NOT NULL DEFAULT '09:00'",
+    "ALTER TABLE plants ADD COLUMN nag_every INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE plants ADD COLUMN nag_times INTEGER NOT NULL DEFAULT 3",
+    "UPDATE plants SET nag_times = 3 WHERE nag_times > 3"
+  ],
+  "card": {
+    "query": "SELECT plants, due, CASE WHEN plants = 0 THEN 'Add your first plant' WHEN due = 0 THEN 'All watered 🌿' WHEN due = 1 THEN '**1** plant needs water today' ELSE '**' || due || '** plants need water today' END AS headline FROM (SELECT count(*) AS plants, coalesce(sum(julianday(date('now', 'localtime')) - julianday(watered) >= every), 0) AS due FROM plants)",
+    "motd": "{{headline}}",
+    "stats": [
+      {
+        "label": "Thirsty",
+        "value": "{{due}}"
+      },
+      {
+        "label": "Plants",
+        "value": "{{plants}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "serif",
+    "radius": 18,
+    "background": "/img/bg-paper.svg"
+  },
+  "widget": {
+    "query": "SELECT count(*) AS plants, coalesce(sum(julianday(date('now', 'localtime')) - julianday(watered) >= every), 0) AS due, coalesce((SELECT group_concat(name, ', ') FROM plants WHERE julianday(date('now', 'localtime')) - julianday(watered) >= every), 'All watered 🌿') AS thirsty, (SELECT name FROM plants ORDER BY every - (julianday(date('now', 'localtime')) - julianday(watered)) LIMIT 1) AS next FROM plants",
+    "background": "#F7F3EA,#E7F0E1",
+    "scheme": "light",
+    "small": [
+      {
+        "type": "image",
+        "url": "/img/icon.png",
+        "height": 58,
+        "radius": 13
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "metric",
+        "text": "{{due}}",
+        "style": "title",
+        "detail": "thirsty today",
+        "icon": "drop.fill",
+        "tint": "#166534"
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 12,
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 110,
+            "radius": 22
+          },
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "WATER TODAY",
+                "style": "caption2",
+                "tint": "#166534"
+              },
+              {
+                "type": "text",
+                "text": "**{{thirsty}}**",
+                "style": "headline"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "text",
+                "text": "Next up: {{next}}",
+                "style": "caption",
+                "tint": "#6F6553"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "circular": [
+      {
+        "type": "gauge",
+        "style": "circular",
+        "value": "{{due}}",
+        "max": "{{plants}}",
+        "icon": "drop.fill",
+        "badge": "{{due}}"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "💧 {{due}} plants thirsty"
+      }
+    ]
+  }
+}

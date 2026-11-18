@@ -1,0 +1,123 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Pet care",
+  "version": 1,
+  "changes": "First version: meals, medicine and vet dates for every pet, with reminders on this phone",
+  "description": "Meals, medicine and vet dates for every pet. One tap when you fed them, a reminder when something is due.",
+  "icon": "/img/icon.png",
+  "tint": "#D97706",
+  "permissions": [
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE pets (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'dog', photo TEXT, meals INTEGER NOT NULL DEFAULT 2, created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE feedings (pet TEXT NOT NULL, at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')))",
+    "CREATE TABLE meds (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), pet TEXT NOT NULL, name TEXT NOT NULL, every INTEGER NOT NULL DEFAULT 1, last TEXT NOT NULL DEFAULT (date('now', 'localtime')), at TEXT NOT NULL DEFAULT '08:00')",
+    "CREATE TABLE vets (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), pet TEXT NOT NULL, what TEXT NOT NULL, day TEXT NOT NULL, done INTEGER NOT NULL DEFAULT 0)",
+    "INSERT INTO pets (id, name, kind, photo, meals) VALUES ('luna', 'Luna', 'dog', '/img/dog.svg', 2), ('milo', 'Milo', 'cat', '/img/cat.svg', 3), ('pip', 'Pip', 'rabbit', '/img/rabbit.svg', 2)",
+    "WITH RECURSIVE d(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM d WHERE n < 6), m(k) AS (SELECT 0 UNION ALL SELECT k + 1 FROM m WHERE k < 2) INSERT INTO feedings (pet, at) SELECT p.id, datetime('now', 'localtime', 'start of day', '-' || d.n || ' days', '+' || (8 + m.k * 5) || ' hours') FROM pets p, d, m WHERE m.k < p.meals AND (d.n + length(p.name) + m.k) % 5 <> 0",
+    "INSERT INTO feedings (pet, at) VALUES ('luna', datetime('now', 'localtime', 'start of day', '+7 hours')), ('milo', datetime('now', 'localtime', 'start of day', '+7 hours', '+20 minutes')), ('pip', datetime('now', 'localtime', 'start of day', '+7 hours', '+40 minutes'))",
+    "INSERT INTO meds (id, pet, name, every, last, at) VALUES ('flea', 'luna', 'Flea tablet', 30, date('now', 'localtime', '-26 days'), '09:00'), ('joint', 'luna', 'Joint supplement', 1, date('now', 'localtime', '-1 days'), '08:00'), ('ears', 'milo', 'Ear drops', 7, date('now', 'localtime', '-5 days'), '19:00'), ('vit', 'pip', 'Vitamin drops', 3, date('now', 'localtime', '-3 days'), '18:00')",
+    "INSERT INTO vets (id, pet, what, day, done) VALUES ('v1', 'pip', 'Yearly check-up', date('now', 'localtime', '+3 days'), 0), ('v2', 'luna', 'Booster shot', date('now', 'localtime', '+9 days'), 0), ('v3', 'milo', 'Dental check', date('now', 'localtime', '+21 days'), 0), ('v4', 'milo', 'Weigh-in', date('now', 'localtime', '-30 days'), 1), ('v5', 'luna', 'Claw trim', date('now', 'localtime', '-45 days'), 1)"
+  ],
+  "card": {
+    "query": "SELECT fed, need, pets, CASE WHEN need = 0 THEN 'Add your first pet' WHEN fed >= need THEN 'Everyone is fed 🐾' ELSE '**' || (need - fed) || '** meals still to give today' END AS headline FROM (SELECT (SELECT count(*) FROM feedings WHERE date(at) = date('now', 'localtime')) AS fed, (SELECT coalesce(sum(meals), 0) FROM pets) AS need, (SELECT count(*) FROM pets) AS pets)",
+    "motd": "{{headline}}",
+    "stats": [
+      {
+        "label": "Fed today",
+        "value": "{{fed}}/{{need}}"
+      },
+      {
+        "label": "Pets",
+        "value": "{{pets}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "playful",
+    "font": "rounded",
+    "radius": 22
+  },
+  "widget": {
+    "query": "SELECT (SELECT count(*) FROM feedings WHERE date(at) = date('now', 'localtime')) AS fed, (SELECT coalesce(sum(meals), 0) FROM pets) AS need, max(0, (SELECT coalesce(sum(meals), 0) FROM pets) - (SELECT count(*) FROM feedings WHERE date(at) = date('now', 'localtime'))) AS left, (SELECT count(*) FROM pets) AS pets, coalesce((SELECT what || ' · ' || (SELECT name FROM pets WHERE id = vets.pet) FROM vets WHERE done = 0 AND day >= date('now', 'localtime') ORDER BY day LIMIT 1), 'No vet date') AS vet",
+    "background": "#FFF7E6,#FDE9BD",
+    "scheme": "light",
+    "small": [
+      {
+        "type": "image",
+        "url": "/img/icon.png",
+        "height": 58,
+        "radius": 13
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "metric",
+        "text": "{{left}}",
+        "style": "title",
+        "detail": "meals to give",
+        "icon": "fork.knife",
+        "tint": "#B45309"
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 12,
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 110,
+            "radius": 22
+          },
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "FED TODAY",
+                "style": "caption2",
+                "tint": "#B45309"
+              },
+              {
+                "type": "text",
+                "text": "**{{fed}} of {{need}}** meals",
+                "style": "headline"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "text",
+                "text": "Next: {{vet}}",
+                "style": "caption",
+                "tint": "#7A5A2E"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "circular": [
+      {
+        "type": "gauge",
+        "style": "circular",
+        "value": "{{fed}}",
+        "max": "{{need}}",
+        "icon": "pawprint.fill",
+        "badge": "{{left}}"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "🐾 {{left}} meals to give"
+      }
+    ]
+  }
+}

@@ -1,0 +1,131 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Budget",
+  "version": 4,
+  "description": "What you spend this month, by category, against your own budget. Never leaves this phone.",
+  "icon": "/img/icon.png",
+  "tint": "#0284C7",
+  "schema": [
+    "CREATE TABLE expenses (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), amount REAL NOT NULL, category TEXT NOT NULL, note TEXT, at TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE prefs (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
+    "INSERT INTO prefs (key, value) VALUES ('budget', '1200')",
+    "INSERT INTO expenses (amount, category, note, at) VALUES (64.30, 'Groceries', 'Weekly shop', datetime('now', '-1 hours')), (12.90, 'Eating out', 'Lunch with Sam', datetime('now', '-1 days')), (49.00, 'Transport', 'Monthly ticket', datetime('now', '-1 days', '-2 hours')), (23.50, 'Fun', 'Cinema', datetime('now', '-2 days')), (8.40, 'Groceries', 'Bakery', datetime('now', '-3 days')), (89.99, 'Home', 'Desk lamp', datetime('now', '-4 days')), (31.20, 'Eating out', 'Pizza night', datetime('now', '-5 days')), (41.75, 'Groceries', 'Market', datetime('now', '-6 days'))"
+  ],
+  "card": {
+    "query": "SELECT printf('€%.0f', spent) AS spent, top, printf('€%.0f', max(budget - spent, 0)) AS left, CAST(round(100.0 * spent / max(budget, 1)) AS INTEGER) AS pct FROM (SELECT coalesce(sum(amount), 0) AS spent, (SELECT category FROM expenses WHERE strftime('%Y-%m', at, 'localtime') = strftime('%Y-%m', 'now', 'localtime') GROUP BY category ORDER BY sum(amount) DESC LIMIT 1) AS top, (SELECT CAST(value AS REAL) FROM prefs WHERE key = 'budget') AS budget FROM expenses WHERE strftime('%Y-%m', at, 'localtime') = strftime('%Y-%m', 'now', 'localtime'))",
+    "motd": "Most goes to **{{top}}** this month",
+    "stats": [
+      {
+        "label": "Spent",
+        "value": "{{spent}}"
+      },
+      {
+        "label": "Left",
+        "value": "{{left}}"
+      },
+      {
+        "label": "Of budget",
+        "value": "{{pct}}%"
+      }
+    ],
+    "chart": "WITH RECURSIVE d(n) AS (SELECT 13 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT (SELECT coalesce(sum(amount), 0) FROM expenses WHERE date(at, 'localtime') = date('now', 'localtime', '-' || d.n || ' days')) AS spent FROM d"
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "serif",
+    "radius": 6
+  },
+  "widget": {
+    "query": "SELECT printf('€%.0f', spent) AS spent, printf('€%.0f', max(budget - spent, 0)) AS left, round(min(1.0, spent / max(budget, 1)), 2) AS ratio, CAST(round(100.0 * spent / max(budget, 1)) AS INTEGER) AS pct FROM (SELECT coalesce(sum(amount), 0) AS spent, (SELECT CAST(value AS REAL) FROM prefs WHERE key = 'budget') AS budget FROM expenses WHERE strftime('%Y-%m', at, 'localtime') = strftime('%Y-%m', 'now', 'localtime'))",
+    "background": "#F7F3EA",
+    "scheme": "light",
+    "small": [
+      {
+        "type": "text",
+        "text": "SPENT THIS MONTH",
+        "style": "caption2",
+        "tint": "#6F6553"
+      },
+      {
+        "type": "metric",
+        "text": "{{spent}}",
+        "style": "title"
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "progress",
+        "value": "{{ratio}}",
+        "tint": "#0284C7"
+      },
+      {
+        "type": "text",
+        "text": "{{left}} left · {{pct}}%",
+        "style": "caption",
+        "tint": "#6F6553"
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 16,
+        "children": [
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "SPENT THIS MONTH",
+                "style": "caption2",
+                "tint": "#6F6553"
+              },
+              {
+                "type": "metric",
+                "text": "{{spent}}",
+                "style": "title",
+                "detail": "{{left}} left"
+              },
+              {
+                "type": "spacer"
+              },
+              {
+                "type": "progress",
+                "value": "{{ratio}}",
+                "tint": "#0284C7"
+              }
+            ]
+          },
+          {
+            "type": "chart",
+            "style": "bar",
+            "tint": "#0F172A",
+            "height": 100,
+            "query": "WITH RECURSIVE d(n) AS (SELECT 9 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT strftime('%d', 'now', 'localtime', '-' || n || ' days') AS label, (SELECT coalesce(sum(amount), 0) FROM expenses WHERE date(at, 'localtime') = date('now', 'localtime', '-' || d.n || ' days')) AS value FROM d"
+          }
+        ]
+      }
+    ],
+    "rectangular": [
+      {
+        "type": "text",
+        "text": "**{{spent}}** spent",
+        "style": "headline"
+      },
+      {
+        "type": "gauge",
+        "value": "{{ratio}}",
+        "style": "linear",
+        "badge": "{{pct}}%"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "{{spent}} spent · {{left}} left"
+      }
+    ]
+  }
+}

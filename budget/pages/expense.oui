@@ -1,0 +1,6 @@
+root = Page([hero, info, del])
+e = Query("query", {sql: "SELECT printf('€%.2f', amount) AS amount, category, coalesce(note, '—') AS note, strftime('%d.%m.%Y %H:%M', at, 'localtime') AS at FROM expenses WHERE id = ?", params: [$id]}, {rows: [{amount: "", category: "", note: "", at: ""}]})
+hero = Metric(e.rows[0].amount, e.rows[0].category, e.rows[0].at)
+info = List([Row("Category", null, null, e.rows[0].category), Row("Note", null, null, e.rows[0].note), Row("When", null, null, e.rows[0].at)])
+remove = Mutation("run", {sql: "DELETE FROM expenses WHERE id = ?", params: [$id]})
+del = AlertDialogBlock("Delete expense", "Delete this expense?", "It's removed from this phone. This can't be undone.", "Delete", "Keep it", "destructive", Action([@Run(remove), @Back()]))

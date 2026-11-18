@@ -1,0 +1,49 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Water",
+  "version": 1,
+  "changes": "Daily water ring, one-tap glasses, a week chart and reminders through the day",
+  "description": "Tap a glass, fill the ring. A week chart and gentle reminders through the day, all on this phone.",
+  "icon": "/img/icon.png",
+  "tint": "#0EA5E9",
+  "permissions": ["notifications"],
+  "schema": [
+    "CREATE TABLE intake (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), ml INTEGER NOT NULL, day TEXT NOT NULL DEFAULT (date('now', 'localtime')), at TEXT NOT NULL DEFAULT (time('now', 'localtime')))",
+    "CREATE TABLE settings (id INTEGER PRIMARY KEY, goal INTEGER NOT NULL DEFAULT 2500, start TEXT NOT NULL DEFAULT '09:00', gap INTEGER NOT NULL DEFAULT 2, times INTEGER NOT NULL DEFAULT 6)",
+    "INSERT INTO settings (id, goal, start, gap, times) VALUES (1, 2500, '09:00', 2, 6)",
+    "INSERT INTO intake (ml, day, at) VALUES (300, date('now', 'localtime'), '06:55'), (250, date('now', 'localtime'), '07:40'), (500, date('now', 'localtime'), '08:05'), (250, date('now', 'localtime'), '08:30'), (250, date('now', 'localtime'), '08:45'), (150, date('now', 'localtime'), '08:55')",
+    "INSERT INTO intake (ml, day, at) VALUES (500, date('now', 'localtime', '-1 day'), '08:00'), (500, date('now', 'localtime', '-1 day'), '11:00'), (250, date('now', 'localtime', '-1 day'), '13:00'), (500, date('now', 'localtime', '-1 day'), '15:30'), (500, date('now', 'localtime', '-1 day'), '18:00'), (300, date('now', 'localtime', '-1 day'), '20:15'), (500, date('now', 'localtime', '-2 days'), '09:00'), (500, date('now', 'localtime', '-2 days'), '12:00'), (500, date('now', 'localtime', '-2 days'), '16:00'), (250, date('now', 'localtime', '-2 days'), '19:00'), (500, date('now', 'localtime', '-3 days'), '08:30'), (500, date('now', 'localtime', '-3 days'), '12:30'), (250, date('now', 'localtime', '-3 days'), '17:00'), (500, date('now', 'localtime', '-4 days'), '09:30'), (500, date('now', 'localtime', '-4 days'), '13:00'), (500, date('now', 'localtime', '-4 days'), '16:00'), (500, date('now', 'localtime', '-4 days'), '19:00'), (500, date('now', 'localtime', '-4 days'), '21:00'), (250, date('now', 'localtime', '-5 days'), '10:00'), (500, date('now', 'localtime', '-5 days'), '14:00'), (500, date('now', 'localtime', '-5 days'), '18:00'), (500, date('now', 'localtime', '-6 days'), '09:00'), (500, date('now', 'localtime', '-6 days'), '12:00'), (500, date('now', 'localtime', '-6 days'), '15:00'), (500, date('now', 'localtime', '-6 days'), '18:00'), (300, date('now', 'localtime', '-6 days'), '20:00')"
+  ],
+  "card": {
+    "query": "SELECT ml, goal, CAST(round(100.0 * ml / goal) AS INTEGER) AS pct, CASE WHEN ml >= goal THEN 'Goal reached 💧' ELSE '**' || (goal - ml) || ' ml** to go today' END AS headline FROM (SELECT (SELECT coalesce(sum(ml), 0) FROM intake WHERE day = date('now', 'localtime')) AS ml, (SELECT goal FROM settings WHERE id = 1) AS goal)",
+    "motd": "{{headline}}",
+    "stats": [{ "label": "Today", "value": "{{ml}} ml" }, { "label": "Goal", "value": "{{pct}}%" }],
+    "chart": "WITH RECURSIVE d(n) AS (SELECT 13 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT coalesce((SELECT sum(ml) FROM intake WHERE day = date('now', 'localtime', '-' || d.n || ' days')), 0) FROM d"
+  },
+  "theme": { "preset": "playful", "radius": 24 },
+  "widget": {
+    "query": "SELECT ml, goal, round(min(1.0, 1.0 * ml / goal), 2) AS ratio FROM (SELECT (SELECT coalesce(sum(ml), 0) FROM intake WHERE day = date('now', 'localtime')) AS ml, (SELECT goal FROM settings WHERE id = 1) AS goal)",
+    "background": "#E0F2FE,#BAE6FD",
+    "scheme": "light",
+    "small": [
+      { "type": "image", "url": "/img/icon.png", "height": 52, "radius": 12 },
+      { "type": "spacer" },
+      { "type": "metric", "text": "{{ml}}", "style": "title", "detail": "of {{goal}} ml", "icon": "drop.fill", "tint": "#0369A1" }
+    ],
+    "medium": [
+      {
+        "type": "stack", "axis": "horizontal", "spacing": 12,
+        "children": [
+          { "type": "image", "url": "/img/icon.png", "height": 100, "radius": 22 },
+          { "type": "stack", "spacing": 4, "children": [
+            { "type": "text", "text": "WATER TODAY", "style": "caption2", "tint": "#0369A1" },
+            { "type": "text", "text": "**{{ml}} ml**", "style": "title" },
+            { "type": "text", "text": "Goal {{goal}} ml", "style": "caption", "tint": "#0C4A6E" }
+          ] }
+        ]
+      }
+    ],
+    "circular": [{ "type": "gauge", "style": "circular", "value": "{{ml}}", "max": "{{goal}}", "icon": "drop.fill" }],
+    "inline": [{ "type": "text", "text": "💧 {{ml}} of {{goal}} ml" }]
+  }
+}

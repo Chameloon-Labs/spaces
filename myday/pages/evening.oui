@@ -1,0 +1,14 @@
+# My Day · garden party
+# 19:30 at Lea's: say you are coming, pick what you bring, and watch the guest list grow.
+root = Page([hero, stats, rsvp, guests, maybe], "Garden party")
+
+$bring = "Lemonade"
+cnt = Query("query", {sql: "SELECT (SELECT count(*) FROM guests WHERE status = 'yes') AS yes, (SELECT count(*) FROM guests WHERE status = 'maybe') AS maybe, (SELECT count(*) FROM guests) AS invited, (SELECT count(*) FROM guests WHERE name = 'You') AS me"}, {rows: [{yes: 0, maybe: 0, invited: 1, me: 0}]})
+list = Query("query", {sql: "SELECT name, '/img/av_' || key || '.png' AS art, '/img/avw_' || key || '.png' AS wide, status, bring FROM guests ORDER BY CASE status WHEN 'yes' THEN 0 WHEN 'maybe' THEN 1 ELSE 2 END, rowid DESC"}, {rows: []})
+join = Mutation("run", {sql: "INSERT INTO guests (n, name, key, status, bring) SELECT 7, 'You', 'you', 'yes', ? WHERE NOT EXISTS (SELECT 1 FROM guests WHERE name = 'You')", params: [$bring]})
+
+hero = Image("/img/garden-s.png", "Garden party at Lea's")
+stats = Stats([Stat("Coming", cnt.rows[0].yes + "", "of " + cnt.rows[0].invited + " invited", "🎉"), Stat("Maybe", cnt.rows[0].maybe + "", null, "🤔")])
+rsvp = cnt.rows[0].me == 1 ? Alert("You're in!", "Lea knows you're bringing something. See you at 19:30.", "success") : Card([CardHeader("Are you coming?", "Pick what you bring"), Chips(["Lemonade", "Cake", "Music", "Just me"], $bring), Buttons([Button("🎉 I'm coming", Action([@Run(join), @Run(cnt), @Run(list), @Haptic("success"), @Confetti()]), "default", "lg")])])
+guests = Tiles(@Each(@Filter(list.rows, "status", "==", "yes"), "g", Tile(g.name, g.bring == "" ? "Coming" : g.bring, g.wide, "Going")), 3)
+maybe = List(@Each(@Filter(list.rows, "status", "!=", "yes"), "m", Row(m.name, m.status == "maybe" ? "Maybe" : "Can't make it", m.art)), "Not sure yet")

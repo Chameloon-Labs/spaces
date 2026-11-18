@@ -1,0 +1,11 @@
+# Focus · week: minutes per day and the log of finished blocks.
+root = Page([metric, chart, best, log], "Your week")
+
+week = Query("query", {sql: "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT CASE strftime('%w', 'now', 'localtime', '-' || d.n || ' days') WHEN '0' THEN 'Sun' WHEN '1' THEN 'Mon' WHEN '2' THEN 'Tue' WHEN '3' THEN 'Wed' WHEN '4' THEN 'Thu' WHEN '5' THEN 'Fri' ELSE 'Sat' END AS label, coalesce((SELECT sum(minutes) FROM sessions WHERE day = date('now', 'localtime', '-' || d.n || ' days')), 0) AS mins FROM d"}, {rows: []})
+total = Query("query", {sql: "SELECT coalesce(sum(minutes), 0) AS mins, round(coalesce(sum(minutes), 0) / 60.0, 1) AS hours, count(*) AS n FROM sessions WHERE day > date('now', 'localtime', '-7 days')"}, {rows: [{mins: 0, hours: 0, n: 0}]})
+metric = Metric(total.rows[0].hours + " h", "Focused in the last 7 days", total.rows[0].n + " blocks, one at a time")
+chart = Card([CardHeader("Minutes per day"), BarChart(week.rows.label, [Series("Minutes", week.rows.mins)])])
+top = Query("query", {sql: "SELECT label, count(*) AS n, sum(minutes) AS mins FROM sessions GROUP BY label ORDER BY mins DESC LIMIT 1"}, {rows: [{label: "", n: 0, mins: 0}]})
+best = top.rows[0].n == 0 ? null : Alert("Most time on: " + top.rows[0].label, top.rows[0].mins + " minutes in " + top.rows[0].n + " blocks", "info")
+recent = Query("query", {sql: "SELECT label, minutes || ' min' AS len, CASE WHEN day = date('now', 'localtime') THEN 'Today ' || at WHEN day = date('now', 'localtime', '-1 day') THEN 'Yesterday ' || at ELSE strftime('%d.%m.', day) || ' ' || at END AS whenr FROM sessions ORDER BY day DESC, at DESC LIMIT 12"}, {rows: []})
+log = @Count(recent.rows) == 0 ? TextContent("Nothing logged yet. Start a block on the home page.", "small") : List(@Each(recent.rows, "s", Row(s.label, s.whenr, "icon:timer", s.len)), "Finished blocks")

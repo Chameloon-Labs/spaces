@@ -1,0 +1,24 @@
+# Focus · home: start a block, watch it count down, log it when it ends.
+root = Page([hero, timer, picker, rings, stats])
+
+run = Query("query", {sql: "SELECT ends, total, label, ends IS NOT NULL AND ends > datetime('now', 'localtime') AS live, ends IS NOT NULL AND ends <= datetime('now', 'localtime') AS over FROM run WHERE id = 1"}, {rows: [{ends: "", total: 1500, label: "Focus", live: 0, over: 0}]})
+today = Query("query", {sql: "SELECT n, mins, ratio, streak, round(min(1.0, streak / 7.0), 2) AS sratio FROM (SELECT count(*) AS n, coalesce(sum(minutes), 0) AS mins, round(min(1.0, count(*) / 4.0), 2) AS ratio, (SELECT count(*) FROM (WITH RECURSIVE s(day) AS (SELECT CASE WHEN EXISTS (SELECT 1 FROM sessions WHERE day = date('now', 'localtime')) THEN date('now', 'localtime') ELSE date('now', 'localtime', '-1 day') END UNION ALL SELECT date(s.day, '-1 day') FROM s WHERE EXISTS (SELECT 1 FROM sessions WHERE day = s.day)) SELECT day FROM s WHERE EXISTS (SELECT 1 FROM sessions WHERE day = s.day))) AS streak FROM sessions WHERE day = date('now', 'localtime'))"}, {rows: [{n: 0, mins: 0, ratio: 0, sratio: 0, streak: 0}]})
+
+hero = Hero(run.rows[0].live == 1 ? "In the zone" : today.rows[0].n == 0 ? "Ready when you are" : today.rows[0].n + (today.rows[0].n == 1 ? " block done" : " blocks done"), run.rows[0].live == 1 ? run.rows[0].label : today.rows[0].mins + " focused minutes today", "/img/hero.svg", today.rows[0].streak > 0 ? ["🔥 " + today.rows[0].streak + (today.rows[0].streak == 1 ? " day" : " days") + " in a row"] : ["Start a streak today"])
+
+# When the countdown reaches zero: log the block once, clear the timer, celebrate.
+log = Mutation("run", {sql: "INSERT INTO sessions (label, minutes) SELECT label, total / 60 FROM run WHERE id = 1 AND ends IS NOT NULL"})
+clear = Mutation("run", {sql: "UPDATE run SET ends = NULL WHERE id = 1"})
+finish = Action([@Run(log), @Run(clear), @Run(run), @Run(today), @Haptic("success"), @Sound("levelup"), @Confetti()])
+timer = run.rows[0].live == 1 ? Card([Countdown(run.rows[0].ends, run.rows[0].label, finish, run.rows[0].total), Buttons([Button("Stop", Action([@Run(clear), @Run(stopNudge), @Run(run), @Haptic("warning")]), "outline")], "column")]) : run.rows[0].over == 1 ? Buttons([Button("Log the finished block ✓", finish, "default", "lg")], "column") : null
+
+# Pick the length and what you're working on, then start: the phone also reminds you when it ends.
+$mins = 25
+$what = ""
+picker = run.rows[0].live == 1 ? null : Card([CardHeader("New block", "Pick a length"), Buttons([Button("15", @Set($mins, 15), $mins == 15 ? "default" : "secondary"), Button("25", @Set($mins, 25), $mins == 25 ? "default" : "secondary"), Button("50", @Set($mins, 50), $mins == 50 ? "default" : "secondary")], "row"), Form("what", Buttons([Button("▶ Start " + $mins + " min", Action([@Run(begin), @Run(nudge), @Run(run), @Haptic("medium")]), "default", "lg")], "column"), [FormControl("Working on", Input("what", "Write the report", "text", null, $what))])])
+begin = Mutation("run", {sql: "UPDATE run SET ends = datetime('now', 'localtime', '+' || CAST(? AS INTEGER) || ' minutes'), total = CAST(? AS INTEGER) * 60, label = coalesce(nullif(trim(?), ''), 'Focus') WHERE id = 1", params: [$mins, $mins, $what]})
+nudge = Mutation("notify", {title: "Focus block done", body: "Take a break. You earned it.", in: $mins * 60, id: "focus-end"})
+stopNudge = Mutation("cancel", {id: "focus-end"})
+
+rings = Rings([Ring(today.rows[0].ratio, today.rows[0].n + "/4", "Blocks today", "#E5484D"), Ring(today.rows[0].sratio, "" + today.rows[0].streak, "Streak (7 days)", "#F59E0B")])
+stats = Buttons([Button("Sessions and week", @Navigate("stats"), "outline")], "column")

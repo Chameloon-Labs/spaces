@@ -1,0 +1,49 @@
+# Bike log · home: this week's km, the bikes, the planned and the finished rides.
+root = Page([ride, hero, who, service, tiles, list, plan, weekCard, scanCard, bikeList, sensor, compose])
+
+week = Query("query", {sql: "SELECT printf('%.0f', coalesce(sum(km), 0)) AS km, count(*) AS n FROM rides WHERE done = 1 AND day > date('now', 'localtime', '-7 days')"}, {rows: [{km: "0", n: 0}]})
+hero = Hero(week.rows[0].km + " km this week", week.rows[0].n + (week.rows[0].n == 1 ? " ride" : " rides") + " on three bikes", "/img/hero.svg", ["Shared with Mia"])
+
+$bike = "commuter"
+bikeRows = Query("query", {sql: "SELECT b.id, b.name, b.art, printf('%.0f', coalesce((SELECT sum(r.km) FROM rides r WHERE r.bike = b.id AND r.done = 1 AND r.day > date('now', 'localtime', '-7 days')), 0)) || ' km this week' AS sub FROM bikes b ORDER BY b.sort"}, {rows: []})
+tiles = Tiles(@Each(bikeRows.rows, "b", Tile(b.name, b.sub, b.art, b.id == $bike ? "✓" : null, Action([@Set($bike, b.id), @Haptic("select")]))), 3)
+
+planned = Query("query", {sql: "SELECT r.id, r.name, printf('%g km', r.km) AS km, b.name || ' · ' || CASE WHEN r.day = date('now', 'localtime') THEN 'Today' WHEN r.day = date('now', 'localtime', '-1 day') THEN 'Yesterday' WHEN r.day = date('now', 'localtime', '+1 day') THEN 'Tomorrow' ELSE strftime('%a %d.%m.', r.day) END AS sub FROM rides r JOIN bikes b ON b.id = r.bike WHERE r.done = 0 ORDER BY r.day, r.created"}, {rows: []})
+rides = Query("query", {sql: "SELECT r.id, r.name, printf('%g km', r.km) AS km, b.art, b.name || ' · ' || CASE WHEN r.day = date('now', 'localtime') THEN 'Today' WHEN r.day = date('now', 'localtime', '-1 day') THEN 'Yesterday' WHEN r.day = date('now', 'localtime', '+1 day') THEN 'Tomorrow' ELSE strftime('%a %d.%m.', r.day) END || CASE WHEN r.by IS NOT NULL THEN ' · ' || r.by ELSE '' END AS sub FROM rides r JOIN bikes b ON b.id = r.bike WHERE r.done = 1 ORDER BY r.day DESC, r.created DESC LIMIT 8"}, {rows: []})
+$picked = ""
+tick = Mutation("run", {sql: "UPDATE rides SET done = 1, by = nullif(?, ''), day = CASE WHEN day > date('now', 'localtime') THEN date('now', 'localtime') ELSE day END WHERE id = ? AND done = 0", params: [$me, $picked]})
+plan = @Count(planned.rows) == 0 ? null : List(@Each(planned.rows, "p", Row(p.name, p.sub, "icon:calendar", p.km, Action([@Set($picked, p.id), @Run(tick), @Haptic("success"), @Run(planned), @Run(rides), @Run(week), @Run(bikeRows), @Run(svc), @Run(weeks)]))), "Planned · tap when done")
+list = @Count(rides.rows) == 0 ? Alert("No rides yet", "Type one below, like Commute 12 km.", "info") : List(@Each(rides.rows, "r", Row(r.name, r.sub, r.art, r.km)), "Rides")
+
+$text = ""
+create = Mutation("run", {sql: "INSERT INTO rides (bike, name, km, day, done, by) SELECT ?, name, km, date('now', 'localtime'), 1, nullif(?, '') FROM (SELECT trim(rtrim(s, '0123456789.')) AS name, CAST(substr(s, length(rtrim(s, '0123456789.')) + 1) AS REAL) AS km FROM (SELECT CASE WHEN lower(trim(?)) LIKE '% km' THEN trim(substr(trim(?), 1, length(trim(?)) - 3)) ELSE trim(?) END AS s)) WHERE name <> '' AND km > 0", params: [$bike, $me, $text, $text, $text, $text]})
+compose = Composer("text", "Log a ride, like Commute 12 km", $text, Action([@Run(create), @Haptic("success"), @Run(planned), @Run(rides), @Run(week), @Run(bikeRows), @Run(svc), @Run(weeks), @Run(reminder), @Reset($text)]))
+
+$me = "Me"
+who = Chips(["Me", "Mia"], $me)
+
+# Service: km since the last one, per bike. The reminder fires when the next service is due (about when, at the recent pace), at once when it already is.
+svc = Query("query", {sql: "SELECT id, name, since, every, left, pct, CASE WHEN left <= 0 THEN 2 ELSE max(60, CAST(round(left / max(pace, 1.0) * 86400) AS INTEGER)) END AS secs FROM (SELECT id, name, every, CAST(round(odo - serviced_at) AS INTEGER) AS since, CAST(round(every - (odo - serviced_at)) AS INTEGER) AS left, min(100, CAST(round((odo - serviced_at) * 100.0 / every) AS INTEGER)) AS pct, (SELECT coalesce(sum(r.km), 0) / 28.0 FROM rides r WHERE r.bike = x.id AND r.done = 1 AND r.day > date('now', 'localtime', '-28 days')) AS pace FROM (SELECT b.*, b.km_base + coalesce((SELECT sum(r.km) FROM rides r WHERE r.bike = b.id AND r.done = 1), 0) AS odo FROM bikes b) x) ORDER BY left"}, {rows: [{id: "", name: "", since: 0, every: 500, left: 500, pct: 0, secs: 60}]})
+soon = svc.rows[0].left <= 0 ? Alert(svc.rows[0].name + " is due for its service", svc.rows[0].since + " km since the last one. Book it in.", "warning") : svc.rows[0].left <= 60 ? Alert(svc.rows[0].name + ": service in " + svc.rows[0].left + " km", svc.rows[0].since + " of " + svc.rows[0].every + " km since the last one.", "info") : null
+$told = ""
+# What the service looks like once the text in the composer is logged (the person's own variables, so it is current when Send is tapped).
+after = Query("query", {sql: "SELECT name, every, since, left, CASE WHEN left <= 0 THEN 2 ELSE max(60, CAST(round(left / max(pace, 1.0) * 86400) AS INTEGER)) END AS secs FROM (SELECT x.name, x.every, CAST(round(x.odo - x.serviced_at + p.km) AS INTEGER) AS since, CAST(round(x.every - (x.odo - x.serviced_at) - p.km) AS INTEGER) AS left, (SELECT coalesce(sum(r.km), 0) / 28.0 FROM rides r WHERE r.bike = x.id AND r.done = 1 AND r.day > date('now', 'localtime', '-28 days')) AS pace FROM (SELECT b.*, b.km_base + coalesce((SELECT sum(r.km) FROM rides r WHERE r.bike = b.id AND r.done = 1), 0) AS odo FROM bikes b) x, (SELECT coalesce(CAST(substr(s, length(rtrim(s, '0123456789.')) + 1) AS REAL), 0) AS km FROM (SELECT CASE WHEN lower(trim(?)) LIKE '% km' THEN trim(substr(trim(?), 1, length(trim(?)) - 3)) ELSE trim(?) END AS s)) p WHERE x.id = ?)", params: [$text, $text, $text, $text, $bike]}, {rows: [{name: "", every: 500, since: 0, left: 500, secs: 60}]})
+reminder = Mutation("notify", {title: after.rows[0].left <= 0 ? after.rows[0].name + " is due for its service" : after.rows[0].name + ": service soon", body: after.rows[0].left <= 0 ? "Service every " + after.rows[0].every + " km. Time to book it in." : "Service every " + after.rows[0].every + " km. Book it in when it fits.", in: after.rows[0].secs, id: "service-" + $bike})
+service = Card([CardHeader("Service", "km since the last one"), soon, Progress(svc.rows[0].pct, svc.rows[0].name + " · " + svc.rows[0].since + " of " + svc.rows[0].every + " km"), @Count(svc.rows) > 1 ? Progress(svc.rows[1].pct, svc.rows[1].name + " · " + svc.rows[1].since + " of " + svc.rows[1].every + " km") : null, @Count(svc.rows) > 2 ? Progress(svc.rows[2].pct, svc.rows[2].name + " · " + svc.rows[2].since + " of " + svc.rows[2].every + " km") : null, Buttons([Button("⏰ Remind me when it's due", Action([@Run(reminder), @Haptic("success"), @Set($told, "Reminder set for the " + after.rows[0].name + ".")]), "secondary")], "column"), $told == "" ? null : Alert("Reminder set", $told, "success")])
+
+weeks = Query("query", {sql: "WITH RECURSIVE w(n) AS (SELECT 7 UNION ALL SELECT n - 1 FROM w WHERE n > 0) SELECT strftime('%d.%m.', date('now', 'localtime', '-' || (n * 7 + 6) || ' days')) AS label, CAST(coalesce((SELECT sum(r.km) FROM rides r WHERE r.done = 1 AND r.day BETWEEN date('now', 'localtime', '-' || (n * 7 + 6) || ' days') AND date('now', 'localtime', '-' || (n * 7) || ' days')), 0) AS INTEGER) AS km FROM w"}, {rows: []})
+weekCard = Card([CardHeader("Per week", "km, last 8 weeks"), BarChart(weeks.rows.label, [Series("km", weeks.rows.km)])])
+
+# Bike tags: a QR on the frame holds bike:<id>. Scan it and the bike's own page opens (the camera needs a phone; a bike row opens the same page).
+sc = Mutation("scan", {kinds: ["qr"]})
+scanCard = Card([CardHeader("Bike tags", "One QR tag on every frame"), Buttons([Button("📷 Scan a bike tag", Action([@Run(sc), @Navigate("bike", {id: sc.data.text})]), "default", "lg")], "column")])
+bikeList = List(@Each(bikeRows.rows, "b", Row(b.name, b.sub, b.art, "bike:" + b.id, @Navigate("bike", {id: b.id}))), "Bike pages")
+
+# Start ride: the same thing Siri, Shortcuts and the Action Button run (actions in space.json).
+trip = Query("query", {sql: "SELECT b.name, substr(t.since, 12, 5) AS at, replace(t.since, ' ', 'T') AS since FROM trip t JOIN bikes b ON b.id = t.bike"}, {rows: []})
+startRide = Mutation("run", {sql: "INSERT INTO trip (bike, since) SELECT ?, datetime('now', 'localtime') WHERE NOT EXISTS (SELECT 1 FROM trip)", params: [$bike]})
+endRide = Mutation("run", {sql: "DELETE FROM trip"})
+ride = @Count(trip.rows) == 0 ? Card([CardHeader("Start ride", "Also in Siri, Shortcuts and on the Action Button"), Buttons([Button("🚴 Start ride", Action([@Run(startRide), @Run(trip), @Haptic("success")]), "default", "lg")], "column")]) : Card([CardHeader("Ride in progress", trip.rows[0].name + " · since " + trip.rows[0].at), Elapsed(trip.rows[0].since, "Riding for"), Buttons([Button("End ride", Action([@Run(endRide), @Run(trip), @Haptic("select")]), "outline")], "column")])
+
+# A Bluetooth speed and cadence sensor needs a custom space (Chameloon 1.2). This page has no sensor: nothing here is measured or made up.
+sensor = Card([CardHeader("Speed and cadence", "Bluetooth sensor"), Stats([Stat("Speed", "– km/h", null, "🚴"), Stat("Cadence", "– rpm", null, "⚙️")]), TextContent("No sensor paired yet.", "small")])

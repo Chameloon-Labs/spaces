@@ -1,0 +1,14 @@
+// Bike log widget in OpenUI Lang: this week's km, and the last seven days.
+sky = Gradient("#0284C7", "#0369A1", 135)
+paper = Gradient("#E0F2FE", "#BAE6FD", 160)
+week = Query("query", {sql: "SELECT printf('%.0f', coalesce(sum(km), 0)) AS km, count(*) AS n, round(min(1.0, coalesce(sum(km), 0) / 150.0), 2) AS ratio FROM rides WHERE done = 1 AND day > date('now', 'localtime', '-7 days')"}, {rows: [{km: "0", n: 0, ratio: 0}]})
+days = Query("query", {sql: "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT substr('SMTWTFS', CAST(strftime('%w', date('now', 'localtime', '-' || n || ' days')) AS INTEGER) + 1, 1) AS label, CAST(coalesce((SELECT sum(km) FROM rides WHERE done = 1 AND day = date('now', 'localtime', '-' || d.n || ' days')), 0) AS INTEGER) AS value FROM d"}, {rows: []})
+head = Row([Icon("bicycle", {color: sky, size: 18}), Text("Bike log", "caption", {color: "#075985", weight: "semibold", design: "rounded", lineLimit: 1}), Spacer()], 6)
+km = Metric(week.rows[0].km, "km this week", null, "hero", {color: sky, design: "rounded", weight: "heavy", minScale: 0.6})
+
+small = Widget([head, Spacer(), km], paper, "light", "home")
+medium = Widget([head, Row([Column([km, Text(week.rows[0].n + " rides", "caption", {color: "#075985"})], 6), Chart(days.rows, "bar", {color: sky, height: 70, radius: 6})], 14)], paper, "light", "home")
+large = Widget([head, km, Divider(), Text("Last 7 days, km", "footnote", {color: "#075985", opacity: 0.8}), Chart(days.rows, "bar", {color: sky, height: 120, radius: 6}), Spacer(), Text("Tap to log a ride", "caption", {color: "#0369A1", align: "center"})], paper, "light", "home")
+circular = Widget([Gauge(week.rows[0].ratio, 0, 1, week.rows[0].km, "circular")])
+rectangular = Widget([Text("Bike log", "headline"), Text(week.rows[0].km + " km this week", "caption"), Progress(week.rows[0].ratio)])
+inline = Widget([Text("🚴 " + week.rows[0].km + " km this week")])

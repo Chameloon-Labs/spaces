@@ -1,0 +1,26 @@
+# Pet care · home: today's meals, what is coming up, a tile per pet.
+root = Page([hero, rings, tiles, who, upNext, add])
+
+today = Query("query", {sql: "SELECT (SELECT count(*) FROM pets) AS pets, (SELECT coalesce(sum(meals), 0) FROM pets) AS need, (SELECT count(*) FROM feedings WHERE date(at) = date('now', 'localtime')) AS fed, (SELECT count(*) FROM meds) AS meds, (SELECT count(*) FROM meds WHERE date(last, '+' || every || ' days') >= date('now', 'localtime')) AS ontime, coalesce((SELECT CAST(julianday(day) - julianday(date('now', 'localtime')) AS INTEGER) FROM vets WHERE done = 0 AND day >= date('now', 'localtime') ORDER BY day LIMIT 1), -1) AS vet"}, {rows: [{pets: 0, need: 0, fed: 0, meds: 0, ontime: 0, vet: -1}]})
+
+hero = Hero(today.rows[0].need > 0 && today.rows[0].fed >= today.rows[0].need ? "Everyone is fed 🐾" : (today.rows[0].need - today.rows[0].fed < 0 ? 0 : today.rows[0].need - today.rows[0].fed) + (today.rows[0].need - today.rows[0].fed == 1 ? " meal to go" : " meals to go"), today.rows[0].pets + " pets, " + today.rows[0].fed + " of " + today.rows[0].need + " meals given today", "/img/hero.svg", ["Stays on this phone"])
+
+rings = Rings([Ring(today.rows[0].need == 0 ? 0 : (today.rows[0].fed > today.rows[0].need ? 1.0 : 1.0 * today.rows[0].fed / today.rows[0].need), today.rows[0].fed + "/" + today.rows[0].need, "Meals today", "#D97706"), Ring(today.rows[0].meds == 0 ? 0 : 1.0 * today.rows[0].ontime / today.rows[0].meds, today.rows[0].ontime + "/" + today.rows[0].meds, "Medicine on track", "#16A34A"), Ring(today.rows[0].vet < 0 ? 0 : (today.rows[0].vet > 30 ? 0.1 : 1.0 - today.rows[0].vet / 30.0), today.rows[0].vet < 0 ? "-" : today.rows[0].vet + " d", "Next vet", "#6366F1")])
+
+pets = Query("query", {sql: "SELECT p.id, p.name, coalesce(p.photo, '/img/dog.svg') AS photo, (SELECT count(*) FROM feedings f WHERE f.pet = p.id AND date(f.at) = date('now', 'localtime')) AS fed, p.meals FROM pets p ORDER BY p.created, p.name"}, {rows: []})
+tiles = @Count(pets.rows) == 0 ? Alert("No pets yet", "Add the first one below.", "info") : Tiles(@Each(pets.rows, "p", Tile(p.name, p.fed >= p.meals ? "Fed for today" : (p.meals - p.fed) + (p.meals - p.fed == 1 ? " meal to go" : " meals to go"), p.photo, p.fed >= p.meals ? "✓ fed" : p.fed + "/" + p.meals, @Navigate("pet", {id: p.id}))), 2)
+
+# Filter what is coming up by pet; the chips come from the pets themselves.
+$who = "All"
+names = Query("query", {sql: "SELECT 'All' AS name, 0 AS o UNION ALL SELECT name, 1 FROM pets ORDER BY o, name"}, {rows: [{name: "All"}]})
+who = Chips(names.rows.name, $who)
+
+# Medicine that is due and vet dates, soonest first.
+coming = Query("query", {sql: "SELECT title, who, d, CASE WHEN d < 0 THEN 'Overdue' WHEN d = 0 THEN 'Today' WHEN d = 1 THEN 'Tomorrow' ELSE 'in ' || d || ' days' END AS when_, icon FROM (SELECT m.name AS title, p.name AS who, CAST(julianday(date(m.last, '+' || m.every || ' days')) - julianday(date('now', 'localtime')) AS INTEGER) AS d, 'icon:droplet' AS icon FROM meds m JOIN pets p ON p.id = m.pet UNION ALL SELECT v.what, p.name, CAST(julianday(v.day) - julianday(date('now', 'localtime')) AS INTEGER), 'icon:calendar' FROM vets v JOIN pets p ON p.id = v.pet WHERE v.done = 0 AND v.day >= date('now', 'localtime')) WHERE ? = 'All' OR who = ? ORDER BY d LIMIT 8", params: [$who, $who]}, {rows: []})
+upNext = @Count(coming.rows) == 0 ? TextContent("Nothing due. Enjoy the walk 🐾", "small") : List(@Each(coming.rows, "c", Row(c.title, c.who, c.icon, c.when_)), "Coming up")
+
+$name = ""
+$kind = "dog"
+$meals = 2
+create = Mutation("run", {sql: "INSERT INTO pets (name, kind, photo, meals) SELECT trim(?), ?, '/img/' || CASE WHEN ? IN ('cat', 'rabbit') THEN ? ELSE 'dog' END || '.svg', CAST(? AS INTEGER) WHERE trim(?) <> ''", params: [$name, $kind, $kind, $kind, $meals, $name]})
+add = DrawerBlock("➕ Add a pet", "New pet", "Name, kind and how many meals a day.", [Form("pet", Buttons([Button("Add pet", Action([@Run(create), @Haptic("success"), @Run(pets), @Run(today), @Run(names), @Reset($name, $kind, $meals)]), "default")]), [FormControl("Name", Input("name", "Luna", "text", null, $name)), FormControl("Kind", RadioGroup("kind", [RadioItem("dog", "Dog"), RadioItem("cat", "Cat"), RadioItem("rabbit", "Rabbit")], $kind)), FormControl($meals + (" meals a day"), Stepper("meals", 1, 6, 1, $meals))])], "outline")

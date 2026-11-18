@@ -1,0 +1,26 @@
+# Subscriptions · one subscription, opened with its $id: cost, renewal, a reminder before it charges.
+root = Page([hero, stats, count, remind, note, renewed, del], i.rows[0].name)
+
+i = Query("query", {sql: "SELECT name, emoji, cycle, printf('%.2f', cents / 100.0) AS price, printf('%.2f', CASE cycle WHEN 'year' THEN cents / 12.0 ELSE cents END / 100.0) AS permonth, printf('%.0f', CASE cycle WHEN 'year' THEN cents ELSE cents * 12 END / 100.0) AS peryear, renews, strftime('%d.%m.%Y', renews) AS renews_f, CAST(julianday(renews) - julianday(date('now', 'localtime')) AS INTEGER) AS d, kind FROM subs WHERE id = ?", params: [$id]}, {rows: [{name: "", emoji: "💳", cycle: "month", price: "0.00", permonth: "0.00", peryear: "0", renews: "", renews_f: "", d: 0, kind: ""}]})
+
+hero = Hero(i.rows[0].name, i.rows[0].d == 0 ? "Renews today" : i.rows[0].d == 1 ? "Renews tomorrow" : "Renews in " + i.rows[0].d + " days", i.rows[0].emoji, [i.rows[0].price + " € / " + i.rows[0].cycle, i.rows[0].kind, "On " + i.rows[0].renews_f])
+stats = Stats([Stat("A month", i.rows[0].permonth + " €", null, "📅"), Stat("A year", i.rows[0].peryear + " €", null, "💸")])
+count = i.rows[0].d <= 30 ? Card([Countdown(i.rows[0].renews + "T09:00", "Charges in", Action([@Haptic("warning")]))]) : null
+
+$when = "3 days before"
+plan = Query("query", {sql: "SELECT CAST(substr(?, 1, instr(?, ' ') - 1) AS INTEGER) AS days, date(renews, '-' || CAST(substr(?, 1, instr(?, ' ') - 1) AS INTEGER) || ' days') || 'T09:00' AS at FROM subs WHERE id = ?", params: [$when, $when, $when, $when, $id]}, {rows: [{days: 3, at: ""}]})
+setRem = Mutation("notify", {title: i.rows[0].name + " renews soon", body: "It charges " + i.rows[0].price + " € on " + i.rows[0].renews_f + ". Keep it or cancel it?", at: plan.rows[0].at, id: "sub-" + $id})
+stopRem = Mutation("cancel", {id: "sub-" + $id})
+saveDays = Mutation("run", {sql: "UPDATE subs SET remind_days = CAST(? AS INTEGER) WHERE id = ?", params: [plan.rows[0].days, $id]})
+waiting = Query("pending", {id: "sub-" + $id}, {rows: []})
+all = Query("pending", {prefix: "sub-"}, {rows: []})
+remind = Card([CardHeader("Remind me before it charges", "On this phone, at 09:00"), Chips(["1 day before", "3 days before", "7 days before"], $when), Buttons([Button("⏰ Set the reminder", Action([@Run(saveDays), @Run(setRem), @Haptic("success"), @Run(waiting), @Run(all)]), "default")], "column")])
+note = @Count(waiting.rows) == 0 ? TextContent("No reminder set. " + @Count(all.rows) + " of 30 reminders are waiting in this space.", "small") : List(@Each(waiting.rows, "w", Row(w.title, w.when, "icon:bell")), "Coming up")
+
+# Renewed: move the date on by one period, and set the next reminder.
+adv = Mutation("run", {sql: "UPDATE subs SET renews = CASE cycle WHEN 'year' THEN date(renews, '+1 year') ELSE date(renews, '+1 month') END WHERE id = ?", params: [$id]})
+renewed = Buttons([Button("It renewed ✓", Action([@Run(stopRem), @Run(adv), @Haptic("select"), @Run(i), @Run(waiting)]), "outline")], "column")
+
+# Cancelling is the good moment: say what it saves.
+rm = Mutation("run", {sql: "DELETE FROM subs WHERE id = ?", params: [$id]})
+del = AlertDialogBlock("Cancelled it?", "Remove " + i.rows[0].name + "?", "You keep " + i.rows[0].peryear + " € a year. Its reminder goes too.", "I cancelled it", "Keep it", "destructive", Action([@Run(stopRem), @Run(rm), @Haptic("success"), @Confetti(), @Back()]))

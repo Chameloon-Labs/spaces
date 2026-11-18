@@ -1,0 +1,15 @@
+// The Habits widget in OpenUI Lang. $param is the habit the person typed when placing the widget (empty: all habits).
+title = $param == "" ? "Habits" : $param
+fade = Gradient("#E11D48", "#F97316", 135)
+paper = Gradient("#FFF1F2", "#FFE4E6", 160)
+today = Query("query", {sql: "SELECT count(DISTINCT h.id) AS total, count(DISTINCT c.habit) AS done, round(1.0 * count(DISTINCT c.habit) / max(count(DISTINCT h.id), 1), 2) AS ratio FROM habits h LEFT JOIN checks c ON c.habit = h.id AND c.day = date('now', 'localtime') WHERE ? = '' OR h.name LIKE '%' || ? || '%'", params: [$param, $param]}, {rows: [{total: 0, done: 0, ratio: 0}]})
+week = Query("query", {sql: "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT substr('SMTWTFS', CAST(strftime('%w', date('now', 'localtime', '-' || n || ' days')) AS INTEGER) + 1, 1) AS label, (SELECT count(*) FROM checks c JOIN habits h ON h.id = c.habit WHERE c.day = date('now', 'localtime', '-' || n || ' days') AND (? = '' OR h.name LIKE '%' || ? || '%')) AS value FROM d", params: [$param, $param]}, {rows: []})
+head = Row([Icon("flame.fill", {color: fade, size: 18}), Text(title, "caption", {color: "#9F1239", weight: "semibold", design: "rounded", lineLimit: 1}), Spacer()], 6)
+count = Metric(today.rows[0].done + "/" + today.rows[0].total, "done today", null, "hero", {color: fade, design: "rounded", weight: "heavy", minScale: 0.6})
+
+small = Widget([head, Spacer(), count, Progress(today.rows[0].ratio, null, {color: "#E11D48"})], paper, "light", "home")
+medium = Widget([head, Row([Column([count, Progress(today.rows[0].ratio, null, {color: "#E11D48"})], 6), Chart(week.rows, "bar", {color: fade, height: 70, radius: 6})], 14)], paper, "light", "home")
+large = Widget([head, count, Divider(), Text("Last 7 days", "footnote", {color: "#9F1239", opacity: 0.8}), Chart(week.rows, "area", {color: fade, height: 120}), Spacer(), Text("Tap to tick off today's habits", "caption", {color: "#BE123C", align: "center"})], paper, "light", "home")
+circular = Widget([Gauge(today.rows[0].ratio, 0, 1, today.rows[0].done, "circular")])
+rectangular = Widget([Text(title, "headline"), Text(today.rows[0].done + " of " + today.rows[0].total + " done", "caption"), Progress(today.rows[0].ratio)])
+inline = Widget([Text("🔥 " + today.rows[0].done + "/" + today.rows[0].total + " habits")])

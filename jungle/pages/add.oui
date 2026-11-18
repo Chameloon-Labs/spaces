@@ -1,0 +1,12 @@
+# Plant Panic · add plant #5
+# Names the fifth plant and pins it to the home page, with a survival streak that starts today.
+root = Page([intro, form, kinds], "Plant #5")
+
+$name = ""
+$kind = "Succulent"
+
+create = Mutation("run", {sql: "INSERT INTO plants (n, name, kind, trait, health, thirsty, born, art, color) SELECT 5, trim(?), ?, 'Please live.', 60, 0, date('now', 'localtime'), '/img/five-w.png', '#EC4899' WHERE trim(?) <> '' AND NOT EXISTS (SELECT 1 FROM plants WHERE n = 5)", params: [$name, $kind, $name]})
+
+intro = Alert("The fifth one", "The mouse got the other four. Name it, plant it, guard it.", "info")
+form = Form("plant5", Buttons([Button("🌱 Plant #5, please live", Action([@Run(create), @Haptic("success"), @Confetti(), @Back()]), "default", "lg")]), [FormControl("Name", Input("name", "Planty McPlantface", "text", {required: true}, $name)), FormControl("What is it?", Chips(["Succulent", "Fern", "Herb", "Cactus"], $kind))])
+kinds = TagBlock(["Keep away from mice", Tag("Water on Sundays", "secondary"), Tag("Day 0 of 30", "outline")])

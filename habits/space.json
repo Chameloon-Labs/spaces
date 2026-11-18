@@ -1,0 +1,158 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Habits",
+  "version": 3,
+  "description": "Small daily habits, ticked off in a tap. Streaks and reminders stay on this phone.",
+  "icon": "/img/icon.png",
+  "tint": "#E11D48",
+  "permissions": [
+    "notifications"
+  ],
+  "schema": [
+    "CREATE TABLE habits (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, emoji TEXT NOT NULL DEFAULT '✨', created TEXT NOT NULL DEFAULT (datetime('now')))",
+    "CREATE TABLE checks (habit TEXT NOT NULL, day TEXT NOT NULL, PRIMARY KEY (habit, day))",
+    "INSERT INTO habits (id, name, emoji, created) VALUES ('water', 'Drink 2 l of water', '💧', datetime('now', '-4 seconds')), ('walk', 'Walk 20 minutes', '🚶', datetime('now', '-3 seconds')), ('read', 'Read 10 pages', '📚', datetime('now', '-2 seconds')), ('screens', 'No screens after 22:00', '🌙', datetime('now', '-1 seconds'))",
+    "INSERT INTO checks (habit, day) WITH RECURSIVE d(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM d WHERE n < 13) SELECT h.id, date('now', 'localtime', '-' || d.n || ' days') FROM habits h, d WHERE (h.id = 'water') OR (h.id = 'walk' AND d.n % 3 <> 0) OR (h.id = 'read' AND d.n < 6) OR (h.id = 'screens' AND d.n % 2 = 0)",
+    "ALTER TABLE habits ADD COLUMN art TEXT",
+    "UPDATE habits SET art = '/img/' || CASE id WHEN 'screens' THEN 'moon' ELSE id END || '.svg' WHERE id IN ('water', 'walk', 'read', 'screens')"
+  ],
+  "card": {
+    "query": "SELECT (SELECT count(*) FROM checks WHERE day = date('now', 'localtime')) AS done, (SELECT count(*) FROM habits) AS total, (SELECT count(*) FROM checks WHERE day > date('now', 'localtime', '-7 days')) AS week",
+    "motd": "**{{done}} of {{total}}** done today",
+    "stats": [
+      {
+        "label": "Today",
+        "value": "{{done}}/{{total}}"
+      },
+      {
+        "label": "This week",
+        "value": "{{week}}"
+      }
+    ],
+    "chart": "WITH RECURSIVE d(n) AS (SELECT 13 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT (SELECT count(*) FROM checks WHERE day = date('now', 'localtime', '-' || d.n || ' days')) AS checks FROM d"
+  },
+  "theme": {
+    "preset": "playful",
+    "font": "rounded",
+    "radius": 24
+  },
+  "widget": {
+    "query": "SELECT done, total, round(1.0 * done / max(total, 1), 2) AS ratio, week FROM (SELECT (SELECT count(*) FROM checks WHERE day = date('now', 'localtime')) AS done, (SELECT count(*) FROM habits) AS total, (SELECT count(*) FROM checks WHERE day > date('now', 'localtime', '-7 days')) AS week)",
+    "background": "#FFF1F2,#FFE4E6",
+    "scheme": "light",
+    "navigate": "home",
+    "small": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "children": [
+          {
+            "type": "image",
+            "url": "/img/icon.png",
+            "height": 36
+          },
+          {
+            "type": "spacer"
+          },
+          {
+            "type": "text",
+            "text": "Habits",
+            "style": "caption",
+            "tint": "#BE123C"
+          }
+        ]
+      },
+      {
+        "type": "spacer"
+      },
+      {
+        "type": "metric",
+        "text": "{{done}}/{{total}}",
+        "style": "hero",
+        "detail": "done today"
+      },
+      {
+        "type": "progress",
+        "value": "{{ratio}}",
+        "tint": "#F43F5E"
+      }
+    ],
+    "medium": [
+      {
+        "type": "stack",
+        "axis": "horizontal",
+        "spacing": 14,
+        "children": [
+          {
+            "type": "stack",
+            "spacing": 6,
+            "children": [
+              {
+                "type": "image",
+                "url": "/img/icon.png",
+                "height": 34
+              },
+              {
+                "type": "metric",
+                "text": "{{done}}/{{total}}",
+                "style": "largeTitle",
+                "detail": "habits today"
+              },
+              {
+                "type": "progress",
+                "value": "{{ratio}}",
+                "tint": "#F43F5E"
+              }
+            ]
+          },
+          {
+            "type": "stack",
+            "spacing": 4,
+            "children": [
+              {
+                "type": "text",
+                "text": "Last 7 days",
+                "style": "caption",
+                "tint": "#9F1239"
+              },
+              {
+                "type": "chart",
+                "style": "bar",
+                "tint": "#FB7185",
+                "height": 86,
+                "query": "WITH RECURSIVE d(n) AS (SELECT 6 UNION ALL SELECT n - 1 FROM d WHERE n > 0) SELECT strftime('%d', 'now', 'localtime', '-' || n || ' days') AS label, (SELECT count(*) FROM checks WHERE day = date('now', 'localtime', '-' || d.n || ' days')) AS value FROM d"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "circular": [
+      {
+        "type": "gauge",
+        "style": "capacity",
+        "value": "{{done}}",
+        "max": "{{total}}",
+        "icon": "flame.fill",
+        "badge": "{{done}}"
+      }
+    ],
+    "rectangular": [
+      {
+        "type": "text",
+        "text": "🔥 **{{done}} of {{total}}** habits",
+        "style": "headline"
+      },
+      {
+        "type": "progress",
+        "value": "{{ratio}}"
+      }
+    ],
+    "inline": [
+      {
+        "type": "text",
+        "text": "🔥 {{done}}/{{total}} habits today"
+      }
+    ]
+  }
+}

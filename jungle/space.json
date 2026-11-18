@@ -1,0 +1,33 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Plant Panic",
+  "version": 1,
+  "description": "Plant rescue for a very chaotic household: who is thirsty, how healthy everyone is, and plant number 5 must survive.",
+  "icon": "/img/icon.png",
+  "tint": "#1E9E55",
+  "schema": [
+    "CREATE TABLE plants (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), n INTEGER NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'Fern', trait TEXT NOT NULL DEFAULT '', health INTEGER NOT NULL DEFAULT 50, thirsty INTEGER NOT NULL DEFAULT 0, born TEXT NOT NULL DEFAULT (date('now','localtime')), art TEXT NOT NULL DEFAULT '/img/five-w.png', color TEXT NOT NULL DEFAULT '#16A34A')",
+    "INSERT INTO plants (id, n, name, kind, trait, health, thirsty, born, art, color) VALUES ('fernando', 1, 'Fernando the fern', 'Fern', 'Dramatic. Faints when dry.', 35, 1, date('now','localtime','-40 days'), '/img/fernando-w.png', '#16A34A'), ('kevin', 2, 'Kevin the cactus', 'Cactus', 'Needs nothing, judges you.', 82, 0, date('now','localtime','-90 days'), '/img/kevin-w.png', '#F59E0B'), ('monty', 3, 'Monty the monstera', 'Monstera', 'Big leaves, bigger ego.', 55, 1, date('now','localtime','-25 days'), '/img/monty-w.png', '#0EA5E9'), ('basil', 4, 'Basil Fawlty', 'Herb', 'Sulks in the shade.', 22, 1, date('now','localtime','-12 days'), '/img/basil-w.png', '#8B5CF6')"
+  ],
+  "card": {
+    "query": "SELECT (SELECT count(*) FROM plants WHERE thirsty = 1) AS thirsty, (SELECT count(*) FROM plants) AS alive",
+    "motd": "**{{thirsty}}** thirsty · **{{alive}}** alive",
+    "stats": [
+      {
+        "label": "Thirsty",
+        "value": "{{thirsty}}"
+      },
+      {
+        "label": "Alive",
+        "value": "{{alive}}"
+      }
+    ]
+  },
+  "theme": {
+    "preset": "paper",
+    "font": "rounded",
+    "radius": 28,
+    "background": "/img/bg.jpg"
+  },
+  "changes": "A rescue list with a health bar per plant, a pinned card for plant number 5 and a page to add it"
+}

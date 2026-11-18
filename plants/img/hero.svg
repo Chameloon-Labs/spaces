@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect x="52" y="52" width="408" height="408" rx="96" fill="#FBF7EC"/>
+<rect x="60" y="350" width="392" height="22" rx="8" fill="#92400E"/><rect x="60" y="372" width="392" height="8" fill="#78350F" opacity=".5"/>
+<!-- left: monstera -->
+<g fill="#22C55E"><path d="M130 240q-50-10-60-60 50-10 60 30z"/><path d="M130 240q50-20 50-70-50 0-50 60z"/><path d="M130 250q-30-50 0-100 30 50 0 100z" fill="#166534"/></g>
+<path d="M130 340V240" stroke="#166534" stroke-width="7"/><path d="M92 300h76l-8 50h-60z" fill="#C2410C"/><rect x="88" y="292" width="84" height="16" rx="5" fill="#EA580C"/>
+<!-- middle: fern/sprout -->
+<g stroke="#166534" stroke-width="7" stroke-linecap="round" fill="none"><path d="M256 330q-70-20-90-100M256 330q-10-110 0-170M256 330q70-20 90-100"/></g>
+<g fill="#22C55E"><circle cx="190" cy="270" r="14"/><circle cx="170" cy="230" r="14"/><circle cx="255" cy="230" r="16"/><circle cx="256" cy="180" r="16"/><circle cx="322" cy="270" r="14"/><circle cx="342" cy="230" r="14"/></g>
+<path d="M210 300h92l-10 50h-72z" fill="#C2410C"/><rect x="204" y="290" width="104" height="18" rx="5" fill="#EA580C"/>
+<!-- right: cactus -->
+<rect x="376" y="230" width="44" height="80" rx="22" fill="#22C55E"/><path d="M376 275h-18v-30a10 10 0 0 1 20 0z" fill="#16A34A"/><path d="M420 265h14v-26a8 8 0 0 0-16 0z" fill="#16A34A"/><path d="M398 240v60" stroke="#166534" stroke-width="4" opacity=".6"/><circle cx="398" cy="226" r="7" fill="#F472B6"/>
+<path d="M366 316h64l-6 34h-52z" fill="#C2410C"/><rect x="362" y="306" width="72" height="14" rx="5" fill="#EA580C"/>
+<rect x="90" y="90" width="332" height="14" rx="7" fill="#BAE6FD" opacity=".0"/></svg>
