@@ -8,6 +8,10 @@
 Example spaces from the [Chameloon gallery](https://chameloon.com/spaces/), one folder each. A space is a `space.json` and a few
 pages in OpenUI Lang. It runs on your iPhone, offline: its data stays in its own database there.
 
+[Spots](spots/) is a custom space: it brings its own small web app (HTML,
+CSS and JavaScript in `app/`) that reaches the phone's features through `window.phone`, each one declared in
+`space.json` and shown before it is added. Custom spaces need Chameloon 1.2.
+
 ## Add one to your phone
 
 In Chameloon, tap **+** and paste this repository's address, `github.com/Chameloon-Labs/spaces`. The app
@@ -16,7 +20,7 @@ lists the spaces in it; pick one. To add one space directly, paste its folder's 
 
 The app shows where a space comes from and what it may use before anything is installed. When a space here gets a new
 `version`, the app offers the update. Adding from GitHub comes with Chameloon 1.2; until then, add them from the
-[gallery](https://chameloon.com/spaces/).
+[gallery](https://chameloon.com/spaces/) (custom spaces only come from here, with 1.2).
 
 ## The spaces
 
@@ -36,6 +40,7 @@ The app shows where a space comes from and what it may use before anything is in
 | <a href="timeclock/"><img src="timeclock/img/icon.png" width="44" alt="" /></a> | [**Time clock**](timeclock/) | Start work, break, business trip and end of day: one tap from the Lock Screen or Shortcuts. |
 | <a href="warranty/"><img src="warranty/img/icon.png" width="44" alt="" /></a> | [**Warranty locker**](warranty/) | Receipts and warranty dates in one place. A reminder before a warranty ends, so you still have time to claim. |
 | <a href="water/"><img src="water/img/icon.png" width="44" alt="" /></a> | [**Water**](water/) | Tap a glass, fill the ring. A week chart and gentle reminders through the day, all on this phone. |
+| <a href="spots/"><img src=".github/readme/icons/spots.svg" width="44" alt="" /></a> | [**Spots**](spots/) | A tiny log of places: photo, position, note. A custom app on the phone's features. *Custom space, needs Chameloon 1.2.* |
 
 ## Make your own
 

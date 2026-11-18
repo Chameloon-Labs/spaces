@@ -1,0 +1,49 @@
+{
+  "$schema": "https://chameloon.com/space.schema.json",
+  "name": "Spots",
+  "mode": "custom",
+  "version": 3,
+  "minApp": "1.2",
+  "description": "A tiny log of places: photo, position, note. A custom app on the phone's features.",
+  "icon": "map-pin",
+  "tint": "#0EA5E9",
+  "permissions": [
+    "camera",
+    "location",
+    "data",
+    "haptics",
+    "notifications",
+    "widget"
+  ],
+  "why": {
+    "camera": "Photograph a spot",
+    "location": "Remember where it is",
+    "data": "Keep your spots on this phone",
+    "haptics": "A tap you feel when a spot is saved",
+    "notifications": "Remind you to come back",
+    "widget": "Keep the Home Screen widget up to date"
+  },
+  "app": {
+    "kind": "bundle",
+    "entry": "index.html",
+    "network": []
+  },
+  "schema": [
+    "CREATE TABLE spots (id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))), name TEXT NOT NULL, lat REAL, lon REAL, photo TEXT, thumb TEXT, created TEXT NOT NULL DEFAULT (datetime('now')))"
+  ],
+  "card": {
+    "query": "SELECT count(*) AS spots FROM spots",
+    "motd": "**{{spots}}** spots saved",
+    "stats": [
+      {
+        "label": "Spots",
+        "value": "{{spots}}"
+      }
+    ]
+  },
+  "optional": [
+    "camera",
+    "location",
+    "notifications"
+  ]
+}

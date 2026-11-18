@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Spots</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Spots</h1>
+      <button type="button" id="open" class="main">Add spot</button>
+    </header>
+    <p id="toast" role="status" aria-live="polite"></p>
+    <section id="empty" hidden>
+      <svg class="pin" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+      <h2>No spots yet</h2>
+      <p>Save the places you want to remember, with a photo and where they are.</p>
+      <button type="button" class="main" id="first">Add your first spot</button>
+    </section>
+    <ul id="list"></ul>
+  </main>
+
+  <dialog id="sheet" aria-labelledby="sheet-title">
+    <form id="add" novalidate>
+      <div class="bar">
+        <h2 id="sheet-title">New spot</h2>
+        <button type="button" id="close" class="quiet">Cancel</button>
+      </div>
+      <label for="name">Name <span class="hint">(required)</span></label>
+      <input id="name" placeholder="Where is it?" autocomplete="off" enterkeyhint="done" aria-describedby="err">
+      <p id="err" class="err" hidden>Give the spot a name to save it.</p>
+      <div class="field" id="photo-field">
+        <button type="button" id="photo">Take photo</button>
+        <div id="shot" hidden>
+          <img id="preview" alt="Photo of this spot">
+          <div class="row">
+            <button type="button" id="retake">Retake</button>
+            <button type="button" id="remove">Remove</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <button type="button" id="where">Use my location</button>
+        <p id="place" class="note" hidden></p>
+      </div>
+      <p id="status" class="note" role="status"></p>
+      <button type="submit" class="main">Save spot</button>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

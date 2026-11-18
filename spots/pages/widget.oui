@@ -1,0 +1,11 @@
+// The Spots widget: how many spots, and the last one saved. It follows what the app wrote (phone.widget.reload()).
+sky = Gradient("#0EA5E9", "#0369A1", 135)
+stat = Query("query", {sql: "SELECT count(*) AS n, (SELECT name FROM spots ORDER BY created DESC, rowid DESC LIMIT 1) AS last FROM spots", params: []}, {rows: [{n: 0, last: ""}]})
+head = Row([Icon("mappin.circle.fill", {color: "#FFFFFF", size: 18}), Text("Spots", "caption", {color: "#E0F2FE", weight: "semibold", lineLimit: 1}), Spacer()], 6)
+count = Metric(stat.rows[0].n, "spots", null, "hero", {color: "#FFFFFF", design: "rounded", weight: "heavy", minScale: 0.6})
+last = Text(stat.rows[0].last == "" ? "Nothing saved yet" : "Last: " + stat.rows[0].last, "caption", {color: "#E0F2FE", lineLimit: 1})
+
+small = Widget([head, Spacer(), count, last], sky, "dark")
+medium = Widget([head, Spacer(), count, last], sky, "dark")
+rectangular = Widget([Text(stat.rows[0].n + " spots", "headline"), last])
+inline = Widget([Text("📍 " + stat.rows[0].n + " spots")])
